@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import { onDestroy } from 'svelte';
+	import { m } from '$lib/paraglide/messages';
+	import { getLocale, locales, setLocale } from '$lib/paraglide/runtime';
 	import {
 		buildSampleSet,
 		clampRounds,
@@ -32,6 +34,38 @@
 		exported: boolean;
 		pair: { A: string; B: string };
 	};
+
+	type Locale = (typeof locales)[number];
+
+	const localeNames: Record<Locale, string> = {
+		'zh-hant': '繁體中文',
+		en: 'English',
+		'zh-cn': '简体中文',
+		ja: '日本語'
+	};
+
+	const localeList = locales as readonly Locale[];
+
+	const initialLocale = (() => {
+		let fallback = localeList[0];
+		try {
+			const resolved = getLocale() as Locale;
+			if (localeList.includes(resolved)) {
+				fallback = resolved;
+			}
+		} catch {
+			/* no-op, fallback already set */
+		}
+		return fallback;
+	})();
+
+	let activeLocale = $state<Locale>(initialLocale);
+
+	function switchLocale(locale: Locale) {
+		if (locale === activeLocale) return;
+		setLocale(locale, { reload: false });
+		activeLocale = locale;
+	}
 
 	const RECORDER_MIME_CANDIDATES = [
 		'audio/webm;codecs=opus',
@@ -81,26 +115,36 @@
 
 	const objectUrls: string[] = [];
 
-	let labelA = $derived(pairA.trim() || '詞語 A');
-	let labelB = $derived(pairB.trim() || '詞語 B');
+	let labelA = $derived(pairA.trim() || m.label_word_a({}, { locale: activeLocale }));
+	let labelB = $derived(pairB.trim() || m.label_word_b({}, { locale: activeLocale }));
 	let readyForTest = $derived(
 		recordings.A.length >= MIN_RECORDINGS_FOR_TEST && recordings.B.length >= MIN_RECORDINGS_FOR_TEST
 	);
 	let normalizedRounds = $derived(clampRounds(roundsPerLabel));
 	let totalRounds = $derived(testItems.length || normalizedRounds * 2);
 	let progressText = $derived(
-		testActive && testItems.length ? `第 ${currentTestIndex + 1} / ${testItems.length} 題` : ''
+		testActive && testItems.length
+			? m.progress_label(
+					{ current: currentTestIndex + 1, total: testItems.length },
+					{ locale: activeLocale }
+				)
+			: ''
 	);
 	let accuracy = $derived(
 		testComplete && testItems.length ? Math.round((score / testItems.length) * 100) : 0
 	);
+	let correctAnswers = $derived(score);
+	let incorrectAnswers = $derived(totalRounds > score ? totalRounds - score : 0);
 	let timerDisplay = $derived(isRecording ? formatDuration(recordingTimer) : '00:00');
 	let hasRecordings = $derived(recordings.A.length + recordings.B.length > 0);
 	let hasUnexportedTests = $derived(completedTests.some((test) => !test.exported));
 	let canExport = $derived(hasRecordings && completedTests.length > 0);
 
 	function detectSupportedMimeType() {
-		if (typeof MediaRecorder === 'undefined' || typeof MediaRecorder.isTypeSupported !== 'function') {
+		if (
+			typeof MediaRecorder === 'undefined' ||
+			typeof MediaRecorder.isTypeSupported !== 'function'
+		) {
 			return null;
 		}
 		for (const type of RECORDER_MIME_CANDIDATES) {
@@ -113,11 +157,11 @@
 
 	async function ensureRecorder() {
 		if (!browser) {
-			recordError = '錄音只能在瀏覽器環境執行。';
+			recordError = m.error_browser_only({}, { locale: activeLocale });
 			return false;
 		}
 		if (!navigator.mediaDevices?.getUserMedia) {
-			recordError = '此瀏覽器不支援麥克風錄音。';
+			recordError = m.error_no_media({}, { locale: activeLocale });
 			return false;
 		}
 		if (!stream) {
@@ -131,7 +175,10 @@
 			try {
 				mediaRecorder = options ? new MediaRecorder(stream, options) : new MediaRecorder(stream);
 			} catch (err) {
-				recordError = `瀏覽器不支援此錄音格式：${(err as Error).message}`;
+				recordError = m.error_unsupported_format(
+					{ message: (err as Error).message },
+					{ locale: activeLocale }
+				);
 				return false;
 			}
 			if (mediaRecorder.mimeType) {
@@ -214,11 +261,11 @@
 	async function startRecording(label: Label) {
 		recordError = '';
 		if (!pairA.trim() || !pairB.trim()) {
-			recordError = '請先輸入兩個最小對詞語。';
+			recordError = m.error_missing_pairs({}, { locale: activeLocale });
 			return;
 		}
 		if (isRecording) {
-			recordError = '正在錄音，請先停止目前錄音。';
+			recordError = m.error_active_recording({}, { locale: activeLocale });
 			return;
 		}
 		try {
@@ -234,7 +281,10 @@
 			mediaRecorder.start();
 			isRecording = label;
 		} catch (err) {
-			recordError = `無法啟動錄音：${(err as Error).message}`;
+			recordError = m.error_start_recording(
+				{ message: (err as Error).message },
+				{ locale: activeLocale }
+			);
 		}
 	}
 
@@ -248,13 +298,14 @@
 	function startTest() {
 		testError = '';
 		if (!readyForTest) {
-			testError = `每個詞語至少需要 ${MIN_RECORDINGS_FOR_TEST} 筆錄音才可測驗。`;
+			testError = m.error_min_recordings(
+				{ min: MIN_RECORDINGS_FOR_TEST },
+				{ locale: activeLocale }
+			);
 			return;
 		}
 		if (browser && hasUnexportedTests) {
-			const proceed = window.confirm(
-				'先前已有尚未匯出的測驗結果，開始新的測驗將覆蓋目前答題進度。要繼續嗎？'
-			);
+			const proceed = window.confirm(m.confirm_new_test({}, { locale: activeLocale }));
 			if (!proceed) {
 				return;
 			}
@@ -324,7 +375,7 @@
 			resetAll();
 			return;
 		}
-		const confirmed = window.confirm('確定要清除所有錄音與測驗紀錄？此動作無法復原。');
+		const confirmed = window.confirm(m.confirm_reset({}, { locale: activeLocale }));
 		if (confirmed) {
 			resetAll();
 		}
@@ -421,7 +472,7 @@
 			return pending ?? completedTests[completedTests.length - 1];
 		})();
 		if (!target) {
-			exportError = '尚未有可匯出的測驗結果。';
+			exportError = m.no_export_records({}, { locale: activeLocale });
 			return;
 		}
 		exporting = true;
@@ -438,9 +489,9 @@
 			const filename = createReportFilename(target.pair, exportTimestamp);
 			downloadBlob(blob, filename);
 			markSessionExported(target.id);
-			exportMessage = '報告已下載。';
+			exportMessage = m.export_success({}, { locale: activeLocale });
 		} catch (err) {
-			exportError = `匯出失敗：${(err as Error).message}`;
+			exportError = m.export_failure({ message: (err as Error).message }, { locale: activeLocale });
 		} finally {
 			exporting = false;
 		}
@@ -460,7 +511,7 @@
 
 	function terminateSession() {
 		if (!browser) return;
-		const confirmed = window.confirm('終止後會清除所有錄音與測驗結果，確定要結束嗎？');
+		const confirmed = window.confirm(m.confirm_terminate({}, { locale: activeLocale }));
 		if (!confirmed) return;
 		stopRecording();
 		currentAudio?.pause();
@@ -473,35 +524,52 @@
 </script>
 
 <div class="space-y-8 p-6">
-	<h1 class="text-3xl font-bold">最小對自測系統</h1>
+	<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+		<h1 class="text-3xl font-bold">{m.app_title({}, { locale: activeLocale })}</h1>
+		<label
+			class="flex flex-col gap-1 text-sm font-semibold text-gray-700 sm:flex-row sm:items-center sm:gap-3"
+		>
+			<span>{m.language_label({}, { locale: activeLocale })}</span>
+			<select
+				value={activeLocale}
+				onchange={(event) =>
+					switchLocale((event.currentTarget as HTMLSelectElement).value as Locale)}
+				class="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+			>
+				{#each localeList as locale}
+					<option value={locale}>{localeNames[locale]}</option>
+				{/each}
+			</select>
+		</label>
+	</div>
 
 	<section class="space-y-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-		<h2 class="text-xl font-semibold">1. 輸入最小對詞語</h2>
+		<h2 class="text-xl font-semibold">{m.step_input_title({}, { locale: activeLocale })}</h2>
 		<div class="grid gap-4 sm:grid-cols-2">
 			<label class="space-y-2 font-medium">
-				<span>詞語 A</span>
+				<span>{m.label_word_a({}, { locale: activeLocale })}</span>
 				<input
 					type="text"
-					placeholder="例如：ship"
+					placeholder={m.placeholder_word_a({}, { locale: activeLocale })}
 					bind:value={pairA}
 					class="w-full rounded-lg border border-gray-300 px-3 py-2 text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
 				/>
 			</label>
 			<label class="space-y-2 font-medium">
-				<span>詞語 B</span>
+				<span>{m.label_word_b({}, { locale: activeLocale })}</span>
 				<input
 					type="text"
-					placeholder="例如：sheep"
+					placeholder={m.placeholder_word_b({}, { locale: activeLocale })}
 					bind:value={pairB}
 					class="w-full rounded-lg border border-gray-300 px-3 py-2 text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
 				/>
 			</label>
 		</div>
-		<p class="text-sm text-gray-600">建議輸入完整詞語或音標，方便測試時辨識。</p>
+		<p class="text-sm text-gray-600">{m.step_input_hint({}, { locale: activeLocale })}</p>
 	</section>
 
 	<section class="space-y-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-		<h2 class="text-xl font-semibold">2. 錄音（建議每個詞語 10 次）</h2>
+		<h2 class="text-xl font-semibold">{m.step_record_title({}, { locale: activeLocale })}</h2>
 		{#if recordError}
 			<p class="font-semibold text-red-600">{recordError}</p>
 		{/if}
@@ -518,9 +586,12 @@
 				>
 					<div class="flex items-center justify-between">
 						<h3 class="text-lg font-semibold">{labelText}</h3>
-						<span class="text-sm text-gray-600"
-							>已錄 {items.length} / 建議 {RECOMMENDED_RECORDINGS}</span
-						>
+						<span class="text-sm text-gray-600">
+							{m.recordings_summary(
+								{ count: items.length, recommended: RECOMMENDED_RECORDINGS },
+								{ locale: activeLocale }
+							)}
+						</span>
 					</div>
 					<div class="flex flex-wrap gap-2">
 						<button
@@ -528,31 +599,38 @@
 							disabled={!pairValue.trim() || (isRecording && !isActive)}
 							class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white enabled:hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
 						>
-							開始錄音
+							{m.start_recording({}, { locale: activeLocale })}
 						</button>
 						<button
 							onclick={stopRecording}
 							disabled={!isActive}
 							class="rounded-lg bg-gray-700 px-4 py-2 text-sm font-semibold text-white enabled:hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
 						>
-							停止
+							{m.stop_recording({}, { locale: activeLocale })}
 						</button>
 					</div>
 					{#if isActive}
-						<p class="text-sm font-semibold text-blue-700">正在錄 {labelText} ⋯⋯ {timerDisplay}</p>
+						<p class="text-sm font-semibold text-blue-700">
+							{m.recording_status(
+								{ label: labelText, timer: timerDisplay },
+								{ locale: activeLocale }
+							)}
+						</p>
 					{/if}
 					<ul class="space-y-3">
 						{#each items as rec}
 							<li class="flex items-center gap-3 text-sm">
 								<div class="flex flex-1 flex-col gap-1">
-									<span class="font-medium">第 {rec.index} 次</span>
+									<span class="font-medium">
+										{m.recording_iteration({ index: rec.index }, { locale: activeLocale })}
+									</span>
 									<audio controls src={rec.url} class="w-full"></audio>
 								</div>
 								<button
 									onclick={() => removeRecording(key as Label, rec.id)}
 									class="rounded-lg bg-red-600 px-3 py-2 font-semibold text-white enabled:hover:bg-red-700"
 								>
-									重錄
+									{m.re_record({}, { locale: activeLocale })}
 								</button>
 							</li>
 						{/each}
@@ -564,16 +642,16 @@
 			onclick={() => confirmReset()}
 			class="rounded-lg bg-gray-800 px-4 py-2 font-semibold text-white hover:bg-gray-900"
 		>
-			清除錄音
+			{m.clear_recordings({}, { locale: activeLocale })}
 		</button>
 	</section>
 
 	<section class="space-y-5 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-		<h2 class="text-xl font-semibold">3. 隨機播放測驗（每個詞語 5 題）</h2>
-		<p class="text-sm text-gray-600">建議每個詞語至少 10 筆錄音，最低只需各 1 筆即可啟動測驗。</p>
+		<h2 class="text-xl font-semibold">{m.step_test_title({}, { locale: activeLocale })}</h2>
+		<p class="text-sm text-gray-600">{m.step_test_hint({}, { locale: activeLocale })}</p>
 		<div class="space-y-3">
 			<label class="space-y-2 font-medium">
-				<span>每個詞語測驗次數（預設 5）</span>
+				<span>{m.rounds_label({}, { locale: activeLocale })}</span>
 				<input
 					type="number"
 					min={MIN_ROUNDS_PER_LABEL}
@@ -583,7 +661,7 @@
 				/>
 			</label>
 			<p class="text-sm text-gray-600">
-				目前將進行 {normalizedRounds * 2} 題。 若錄音不足，系統會隨機重複樣本以保持 A/B 題數平衡。
+				{m.rounds_summary({ total: normalizedRounds * 2 }, { locale: activeLocale })}
 			</p>
 		</div>
 		<div class="flex flex-wrap items-center gap-4">
@@ -593,7 +671,7 @@
 					bind:checked={autoPlayNext}
 					class="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
 				/>
-				<span>答題後自動播放下一題</span>
+				<span>{m.auto_play_label({}, { locale: activeLocale })}</span>
 			</label>
 		</div>
 		{#if testError}
@@ -605,7 +683,7 @@
 				disabled={!readyForTest}
 				class="w-full rounded-xl bg-blue-600 px-4 py-3 text-lg font-semibold text-white enabled:hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
 			>
-				開始測驗
+				{m.start_test({}, { locale: activeLocale })}
 			</button>
 		{/if}
 
@@ -618,14 +696,14 @@
 						onclick={terminateSession}
 						class="w-fit rounded-lg bg-red-600 px-4 py-2 font-semibold text-white hover:bg-red-700"
 					>
-						終止本次測驗
+						{m.terminate_test({}, { locale: activeLocale })}
 					</button>
 				</div>
 				<button
 					onclick={playCurrentSample}
 					class="w-full rounded-lg bg-green-600 px-4 py-2 font-semibold text-white hover:bg-green-700"
 				>
-					播放題目
+					{m.play_prompt({}, { locale: activeLocale })}
 				</button>
 				<div
 					class={`flex transform gap-3 transition ${hideChoices ? 'pointer-events-none scale-95 opacity-0' : 'opacity-100'}`}
@@ -651,14 +729,28 @@
 		{#if testComplete}
 			<div class="space-y-3 rounded-xl border border-gray-200 p-4">
 				<p class="text-lg font-semibold">
-					成績：{score} / {totalRounds}（{accuracy}%）
+					{m.score_summary({ score, total: totalRounds, accuracy }, { locale: activeLocale })}
+				</p>
+				<p class="text-sm text-gray-700">
+					{m.correct_wrong_summary(
+						{ correct: correctAnswers, incorrect: incorrectAnswers },
+						{ locale: activeLocale }
+					)}
 				</p>
 				<ol class="space-y-2 text-sm text-gray-700">
 					{#each testItems as item, index}
+						{@const correctLabel = item.sample.label === 'A' ? labelA : labelB}
+						{@const answerLabel = item.response
+							? item.response === 'A'
+								? labelA
+								: labelB
+							: m.unanswered({}, { locale: activeLocale })}
 						<li class="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2">
 							<span>
-								題目 {index + 1}：正解 {item.sample.label === 'A' ? labelA : labelB}， 你的答案
-								{item.response ? (item.response === 'A' ? labelA : labelB) : '未作答'}
+								{m.question_feedback(
+									{ index: index + 1, correct: correctLabel, answer: answerLabel },
+									{ locale: activeLocale }
+								)}
 							</span>
 							<span class={item.correct ? 'text-green-600' : 'text-red-600'}>
 								{item.correct ? '✔' : '✘'}
@@ -676,17 +768,21 @@
 					disabled={!canExport || exporting}
 					class="w-full rounded-lg bg-gray-800 px-4 py-2 font-semibold text-white enabled:hover:bg-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
 				>
-					{exporting ? '匯出中⋯⋯' : '匯出最新測驗（ZIP）'}
+					{exporting
+						? m.export_btn_loading({}, { locale: activeLocale })
+						: m.export_btn_ready({}, { locale: activeLocale })}
 				</button>
 				<p class="text-sm text-gray-600">
-					報告包含 report.json 與所有錄音（recordings/ 內依瀏覽器可能為 .webm 或 .m4a）。可隨時匯出任一已完成測驗。
+					{m.export_info({}, { locale: activeLocale })}
 				</p>
 			</div>
 			{#if !completedTests.length}
-				<p class="text-sm text-gray-500">尚未有可匯出的測驗紀錄。</p>
+				<p class="text-sm text-gray-500">{m.no_export_records({}, { locale: activeLocale })}</p>
 			{:else}
 				<div class="space-y-3">
-					<h3 class="text-base font-semibold">已完成測驗</h3>
+					<h3 class="text-base font-semibold">
+						{m.completed_tests_title({}, { locale: activeLocale })}
+					</h3>
 					<ul class="space-y-2">
 						{#each [...completedTests].slice().reverse() as session}
 							<li
@@ -694,20 +790,40 @@
 							>
 								<div>
 									<p class="text-sm font-semibold">{session.pair.A} / {session.pair.B}</p>
+									{@const timestamp = new Date(session.createdAt).toLocaleString()}
 									<p class="text-xs text-gray-600">
-										{new Date(session.createdAt).toLocaleString()} · {session.score} / {session.totalRounds}（{session.accuracy}%）
+										{m.session_meta(
+											{
+												timestamp,
+												score: session.score,
+												total: session.totalRounds,
+												accuracy: session.accuracy
+											},
+											{ locale: activeLocale }
+										)}
+									</p>
+									<p class="text-xs text-gray-600">
+										{m.correct_wrong_summary(
+											{
+												correct: session.score,
+												incorrect: Math.max(session.totalRounds - session.score, 0)
+											},
+											{ locale: activeLocale }
+										)}
 									</p>
 								</div>
 								<div class="flex items-center gap-2">
 									{#if session.exported}
-										<span class="text-xs font-semibold text-green-600">已匯出</span>
+										<span class="text-xs font-semibold text-green-600">
+											{m.exported_badge({}, { locale: activeLocale })}
+										</span>
 									{/if}
 									<button
 										onclick={() => exportReport(session.id)}
 										disabled={exporting}
 										class="rounded-lg bg-gray-800 px-3 py-2 text-sm font-semibold text-white enabled:hover:bg-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
 									>
-										匯出
+										{m.export_button({}, { locale: activeLocale })}
 									</button>
 								</div>
 							</li>
