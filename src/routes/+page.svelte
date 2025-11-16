@@ -134,7 +134,7 @@
 		testComplete && testItems.length ? Math.round((score / testItems.length) * 100) : 0
 	);
 	let correctAnswers = $derived(score);
-	let incorrectAnswers = $derived(totalRounds > score ? totalRounds - score : 0);
+	let incorrectAnswers = $derived(Math.max(totalRounds - score, 0));
 	let timerDisplay = $derived(isRecording ? formatDuration(recordingTimer) : '00:00');
 	let hasRecordings = $derived(recordings.A.length + recordings.B.length > 0);
 	let hasUnexportedTests = $derived(completedTests.some((test) => !test.exported));
@@ -790,17 +790,17 @@
 							>
 								<div>
 									<p class="text-sm font-semibold">{session.pair.A} / {session.pair.B}</p>
-								<p class="text-xs text-gray-600">
-									{m.session_meta(
-										{
-											timestamp: new Date(session.createdAt).toLocaleString(),
-											score: session.score,
-											total: session.totalRounds,
-											accuracy: session.accuracy
-										},
-										{ locale: activeLocale }
-									)}
-								</p>
+									<p class="text-xs text-gray-600">
+										{m.session_meta(
+											{
+												timestamp: new Date(session.createdAt).toLocaleString(),
+												score: session.score,
+												total: session.totalRounds,
+												accuracy: session.accuracy
+											},
+											{ locale: activeLocale }
+										)}
+									</p>
 									<p class="text-xs text-gray-600">
 										{m.correct_wrong_summary(
 											{

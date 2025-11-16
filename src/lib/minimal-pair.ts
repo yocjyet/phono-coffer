@@ -128,6 +128,7 @@ function createReportMarkdown(payload: ReportPayload) {
 		payload.totals.questions > 0
 			? Math.round((payload.totals.score / payload.totals.questions) * 100)
 			: 0;
+	const incorrectCount = Math.max(payload.totals.questions - payload.totals.score, 0);
 	const lines: string[] = [];
 
 	lines.push('# 最小對測驗報告', '');
@@ -144,7 +145,8 @@ function createReportMarkdown(payload: ReportPayload) {
 	lines.push(`- 詞語 A 錄音數：${payload.totals.recordingsA}`);
 	lines.push(`- 詞語 B 錄音數：${payload.totals.recordingsB}`);
 	lines.push(`- 題目總數：${payload.totals.questions}`);
-	lines.push(`- 得分：${payload.totals.score}`);
+	lines.push(`- 答對題數：${payload.totals.score}`);
+	lines.push(`- 答錯題數：${incorrectCount}`);
 	lines.push(`- 正確率：${accuracy}%`, '');
 
 	lines.push('## 錄音列表', '');
