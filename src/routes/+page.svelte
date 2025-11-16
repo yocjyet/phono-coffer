@@ -33,6 +33,16 @@
 		pair: { A: string; B: string };
 	};
 
+	const RECORDER_MIME_CANDIDATES = [
+		'audio/webm;codecs=opus',
+		'audio/webm',
+		'audio/ogg;codecs=opus',
+		'audio/ogg',
+		'audio/mp4;codecs=mp4a.40.2',
+		'audio/mp4',
+		'audio/aac'
+	];
+
 	const LABEL_KEYS: Label[] = ['A', 'B'];
 
 	let pairA = $state('');
@@ -49,6 +59,7 @@
 	let isRecording = $state<Label | null>(null);
 	let recordingTimer = $state(0);
 	let timerInterval: ReturnType<typeof setInterval> | null = null;
+	let recorderMimeType = $state<string | null>(null);
 
 	let testItems = $state<TestItem[]>([]);
 	let currentTestIndex = $state(0);
@@ -88,6 +99,18 @@
 	let hasUnexportedTests = $derived(completedTests.some((test) => !test.exported));
 	let canExport = $derived(hasRecordings && completedTests.length > 0);
 
+	function detectSupportedMimeType() {
+		if (typeof MediaRecorder === 'undefined' || typeof MediaRecorder.isTypeSupported !== 'function') {
+			return null;
+		}
+		for (const type of RECORDER_MIME_CANDIDATES) {
+			if (MediaRecorder.isTypeSupported(type)) {
+				return type;
+			}
+		}
+		return null;
+	}
+
 	async function ensureRecorder() {
 		if (!browser) {
 			recordError = '錄音只能在瀏覽器環境執行。';
@@ -101,7 +124,19 @@
 			stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 		}
 		if (!mediaRecorder) {
-			mediaRecorder = new MediaRecorder(stream);
+			if (!recorderMimeType) {
+				recorderMimeType = detectSupportedMimeType();
+			}
+			const options = recorderMimeType ? { mimeType: recorderMimeType } : undefined;
+			try {
+				mediaRecorder = options ? new MediaRecorder(stream, options) : new MediaRecorder(stream);
+			} catch (err) {
+				recordError = `瀏覽器不支援此錄音格式：${(err as Error).message}`;
+				return false;
+			}
+			if (mediaRecorder.mimeType) {
+				recorderMimeType = mediaRecorder.mimeType;
+			}
 			mediaRecorder.ondataavailable = (event) => {
 				if (event.data.size > 0) {
 					audioChunks.push(event.data);
@@ -123,7 +158,9 @@
 			return;
 		}
 
-		const blob = new Blob(audioChunks, { type: 'audio/webm' });
+		const fallbackType = audioChunks[0]?.type || 'audio/webm';
+		const mimeType = recorderMimeType ?? fallbackType;
+		const blob = new Blob(audioChunks, { type: mimeType });
 		const url = URL.createObjectURL(blob);
 		objectUrls.push(url);
 
@@ -132,7 +169,8 @@
 			label: recordingTarget,
 			blob,
 			url,
-			index: recordings[recordingTarget].length + 1
+			index: recordings[recordingTarget].length + 1,
+			mimeType
 		};
 
 		recordings = {
@@ -641,7 +679,7 @@
 					{exporting ? '匯出中⋯⋯' : '匯出最新測驗（ZIP）'}
 				</button>
 				<p class="text-sm text-gray-600">
-					報告包含 report.json 與所有錄音（recordings/*.webm）。可隨時匯出任一已完成測驗。
+					報告包含 report.json 與所有錄音（recordings/ 內依瀏覽器可能為 .webm 或 .m4a）。可隨時匯出任一已完成測驗。
 				</p>
 			</div>
 			{#if !completedTests.length}
