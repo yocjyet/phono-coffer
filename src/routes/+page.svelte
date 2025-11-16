@@ -408,6 +408,19 @@
 		document.body.removeChild(anchor);
 		URL.revokeObjectURL(url);
 	}
+
+	function terminateSession() {
+		if (!browser) return;
+		const confirmed = window.confirm('終止後會清除所有錄音與測驗結果，確定要結束嗎？');
+		if (!confirmed) return;
+		stopRecording();
+		currentAudio?.pause();
+		currentAudio = null;
+		stream?.getTracks().forEach((track) => track.stop());
+		stream = null;
+		mediaRecorder = null;
+		resetAll();
+	}
 </script>
 
 <div class="space-y-8 p-6">
@@ -549,7 +562,16 @@
 
 		{#if testActive}
 			<div class="space-y-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
-				<p class="text-base font-semibold text-gray-800">{progressText}</p>
+				<div class="flex items-center justify-between">
+					<p class="text-base font-semibold text-gray-800">{progressText}</p>
+
+					<button
+						onclick={terminateSession}
+						class="w-fit rounded-lg bg-red-600 px-4 py-2 font-semibold text-white hover:bg-red-700"
+					>
+						終止本次測驗
+					</button>
+				</div>
 				<button
 					onclick={playCurrentSample}
 					class="w-full rounded-lg bg-green-600 px-4 py-2 font-semibold text-white hover:bg-green-700"
