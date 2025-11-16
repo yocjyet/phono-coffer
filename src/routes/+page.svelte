@@ -48,6 +48,7 @@
 	let exportMessage = '';
 	let hideChoices = false;
 	let hideChoicesTimeout: ReturnType<typeof setTimeout> | null = null;
+	let autoPlayNext = true;
 
 	const objectUrls: string[] = [];
 
@@ -240,7 +241,9 @@
 			testComplete = true;
 		} else {
 			currentTestIndex += 1;
-			playCurrentSample();
+			if (autoPlayNext) {
+				playCurrentSample();
+			}
 		}
 		triggerChoiceTransition();
 	}
@@ -431,6 +434,10 @@
 				目前將進行 {normalizedRounds * 2} 題。 若錄音不足，系統會隨機重複樣本以保持 A/B 題數平衡。
 			</p>
 		</div>
+		<label class="option-line">
+			<input type="checkbox" bind:checked={autoPlayNext} />
+			<span>答題後自動播放下一題</span>
+		</label>
 		{#if testError}
 			<p class="error">{testError}</p>
 		{/if}
@@ -636,6 +643,14 @@
 
 	.rounds-control input {
 		max-width: 120px;
+	}
+
+	.option-line {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		font-weight: 500;
+		margin-bottom: 0.5rem;
 	}
 
 	ul {
