@@ -34,9 +34,22 @@
 		formatDuration
 	} from '$lib/minimal-pair';
 
+	type TestRunItem = TestItem & {
+		lastPlayedAt: number | null;
+		reactionTimeMs: number | null;
+	};
+
+	type ReactionStats = {
+		totalAnswered: number;
+		last: number | null;
+		overall: number | null;
+		correct: number | null;
+		incorrect: number | null;
+	};
+
 	type CompletedTest = {
 		id: string;
-		items: TestItem[];
+		items: TestRunItem[];
 		score: number;
 		totalRounds: number;
 		executedRoundsPerLabel: number;
@@ -46,6 +59,34 @@
 		exported: boolean;
 		labels: LabelDefinition[];
 	};
+
+	function isTimedItem(item: TestRunItem): item is TestRunItem & { reactionTimeMs: number } {
+		return typeof item.reactionTimeMs === 'number' && Number.isFinite(item.reactionTimeMs);
+	}
+
+	function summarizeReactions(items: TestRunItem[]): ReactionStats {
+		const answered = items.filter((item) => item.response !== null);
+		const timed = answered.filter(isTimedItem);
+		const average = (list: typeof timed) => {
+			if (!list.length) return null;
+			const total = list.reduce((sum, entry) => sum + entry.reactionTimeMs, 0);
+			return total / list.length;
+		};
+		return {
+			totalAnswered: answered.length,
+			last: timed.length ? timed[timed.length - 1].reactionTimeMs : null,
+			overall: average(timed),
+			correct: average(timed.filter((entry) => entry.correct)),
+			incorrect: average(timed.filter((entry) => entry.correct === false))
+		};
+	}
+
+	function formatReactionTime(ms: number | null) {
+		if (ms === null || Number.isNaN(ms)) {
+			return 'N/A';
+		}
+		return `${(ms / 1000).toFixed(2)}s`;
+	}
 
 	const DEFAULT_LABELS: LabelDefinition[] = [
 		{ id: 'A', value: '' },
@@ -136,7 +177,7 @@
 	let timerInterval: ReturnType<typeof setInterval> | null = null;
 	let recorderMimeType = $state<string | null>(null);
 
-	let testItems = $state<TestItem[]>([]);
+	let testItems = $state<TestRunItem[]>([]);
 	let currentTestIndex = $state(0);
 	let score = $state(0);
 	let testActive = $state(false);
@@ -250,6 +291,7 @@
 	);
 	let hasUnexportedTests = $derived(completedTests.some((test) => !test.exported));
 	let canExport = $derived(hasRecordings && completedTests.length > 0);
+	let reactionStats = $derived(summarizeReactions(testItems));
 
 	function detectSupportedMimeType() {
 		if (
@@ -435,11 +477,13 @@
 			buildSampleSet(recordings, option.id, perLabel)
 		);
 
-		const queue = shuffle(selections).map((sample) => ({
+		const queue: TestRunItem[] = shuffle(selections).map((sample) => ({
 			id: createId(),
 			sample,
 			response: null,
-			correct: null
+			correct: null,
+			lastPlayedAt: null,
+			reactionTimeMs: null
 		}));
 
 		testItems = queue;
@@ -456,6 +500,10 @@
 		currentAudio?.pause();
 		currentAudio = new Audio(current.sample.url);
 		currentAudio.play();
+		const startedAt = Date.now();
+		testItems = testItems.map((item, index) =>
+			index === currentTestIndex ? { ...item, lastPlayedAt: startedAt } : item
+		);
 	}
 
 	function submitGuess(label: Label) {
@@ -464,7 +512,14 @@
 		if (!current || current.response) return;
 
 		const correct = current.sample.label === label;
-		const updated: TestItem = { ...current, response: label, correct };
+		const reactionTimeMs =
+			typeof current.lastPlayedAt === 'number' ? Date.now() - current.lastPlayedAt : null;
+		const updated: TestRunItem = {
+			...current,
+			response: label,
+			correct,
+			reactionTimeMs
+		};
 		testItems = testItems.map((item, index) => (index === currentTestIndex ? updated : item));
 
 		if (correct) {
@@ -910,6 +965,38 @@
 			</div>
 		{/if}
 
+		{#if reactionStats.totalAnswered}
+			<div class="space-y-3 rounded-xl border border-blue-100 bg-blue-50/70 p-4">
+				<p class="text-base font-semibold text-gray-900">Reaction times</p>
+				<div class="grid gap-3 sm:grid-cols-2">
+					<div class="rounded-lg bg-white/60 px-3 py-2">
+						<p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Last answer</p>
+						<p class="text-lg font-semibold text-gray-900">
+							{formatReactionTime(reactionStats.last)}
+						</p>
+					</div>
+					<div class="rounded-lg bg-white/60 px-3 py-2">
+						<p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Avg overall</p>
+						<p class="text-lg font-semibold text-gray-900">
+							{formatReactionTime(reactionStats.overall)}
+						</p>
+					</div>
+					<div class="rounded-lg bg-white/60 px-3 py-2">
+						<p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Avg correct</p>
+						<p class="text-lg font-semibold text-gray-900">
+							{formatReactionTime(reactionStats.correct)}
+						</p>
+					</div>
+					<div class="rounded-lg bg-white/60 px-3 py-2">
+						<p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Avg incorrect</p>
+						<p class="text-lg font-semibold text-gray-900">
+							{formatReactionTime(reactionStats.incorrect)}
+						</p>
+					</div>
+				</div>
+			</div>
+		{/if}
+
 		{#if testComplete}
 			<div class="space-y-3 rounded-xl border border-gray-200 p-4">
 				<p class="text-lg font-semibold">
@@ -928,12 +1015,17 @@
 							? (labelDisplayMap[item.response] ?? item.response)
 							: m.unanswered()}
 						<li class="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2">
-							<span>
-								{m.question_feedback(
-									{ index: index + 1, correct: correctLabel, answer: answerLabel },
-									{ locale: activeLocale }
-								)}
-							</span>
+							<div class="flex flex-col gap-1">
+								<span>
+									{m.question_feedback(
+										{ index: index + 1, correct: correctLabel, answer: answerLabel },
+										{ locale: activeLocale }
+									)}
+								</span>
+								<span class="text-xs text-gray-500">
+									Reaction: {formatReactionTime(item.reactionTimeMs)}
+								</span>
+							</div>
 							<span class={item.correct ? 'text-green-600' : 'text-red-600'}>
 								{item.correct ? '✔' : '✘'}
 							</span>
@@ -965,37 +1057,41 @@
 						{m.completed_tests_title()}
 					</h3>
 					<ul class="space-y-2">
-						{#each [...completedTests].slice().reverse() as session}
-							{@const sessionNames = session.labels.map(
-								(label) => label.value.trim() || fallbackLabelName(label.id)
-							)}
-							<li
-								class="flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between"
-							>
-								<div>
-									<p class="text-sm font-semibold">{sessionNames.join(' / ')}</p>
-									<p class="text-xs text-gray-600">
-										{m.session_meta(
-											{
-												timestamp: new Date(session.createdAt).toLocaleString(),
-												score: session.score,
-												total: session.totalRounds,
-												accuracy: session.accuracy
-											},
-											{ locale: activeLocale }
-										)}
-									</p>
-									<p class="text-xs text-gray-600">
-										{m.correct_wrong_summary(
-											{
-												correct: session.score,
-												incorrect: Math.max(session.totalRounds - session.score, 0)
-											},
-											{ locale: activeLocale }
-										)}
-									</p>
-								</div>
-								<div class="flex items-center gap-2">
+				{#each [...completedTests].slice().reverse() as session}
+					{@const sessionNames = session.labels.map(
+						(label) => label.value.trim() || fallbackLabelName(label.id)
+					)}
+					{@const sessionReaction = summarizeReactions(session.items)}
+					<li
+						class="flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between"
+					>
+						<div>
+							<p class="text-sm font-semibold">{sessionNames.join(' / ')}</p>
+							<p class="text-xs text-gray-600">
+								{m.session_meta(
+									{
+										timestamp: new Date(session.createdAt).toLocaleString(),
+										score: session.score,
+										total: session.totalRounds,
+										accuracy: session.accuracy
+									},
+									{ locale: activeLocale }
+								)}
+							</p>
+							<p class="text-xs text-gray-600">
+								{m.correct_wrong_summary(
+									{
+										correct: session.score,
+										incorrect: Math.max(session.totalRounds - session.score, 0)
+									},
+									{ locale: activeLocale }
+								)}
+							</p>
+							<p class="text-xs text-gray-600">
+								Reaction avg: {formatReactionTime(sessionReaction.overall)} · ✔ {formatReactionTime(sessionReaction.correct)} · ✘ {formatReactionTime(sessionReaction.incorrect)}
+							</p>
+						</div>
+						<div class="flex items-center gap-2">
 									{#if session.exported}
 										<span class="text-xs font-semibold text-green-600">
 											{m.exported_badge()}
