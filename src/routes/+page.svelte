@@ -20,51 +20,54 @@
 		formatDuration
 	} from '$lib/minimal-pair';
 
-	let pairA = '';
-	let pairB = '';
+	let pairA = $state('');
+	let pairB = $state('');
 
-	let recordings: RecordingsMap = { A: [], B: [] };
-	let recordError = '';
-	let testError = '';
+	let recordings = $state<RecordingsMap>({ A: [], B: [] });
+	let recordError = $state('');
+	let testError = $state('');
 
-	let stream: MediaStream | null = null;
-	let mediaRecorder: MediaRecorder | null = null;
-	let audioChunks: Blob[] = [];
-	let recordingTarget: Label | null = null;
-	let isRecording: Label | null = null;
-	let recordingTimer = 0;
+	let stream = $state<MediaStream | null>(null);
+	let mediaRecorder = $state<MediaRecorder | null>(null);
+	let audioChunks = $state<Blob[]>([]);
+	let recordingTarget = $state<Label | null>(null);
+	let isRecording = $state<Label | null>(null);
+	let recordingTimer = $state(0);
 	let timerInterval: ReturnType<typeof setInterval> | null = null;
 
-	let testItems: TestItem[] = [];
-	let currentTestIndex = 0;
-	let score = 0;
-	let testActive = false;
-	let testComplete = false;
+	let testItems = $state<TestItem[]>([]);
+	let currentTestIndex = $state(0);
+	let score = $state(0);
+	let testActive = $state(false);
+	let testComplete = $state(false);
 	let currentAudio: HTMLAudioElement | null = null;
-	let roundsPerLabel: number = DEFAULT_ROUNDS_PER_LABEL;
-	let lastUsedRoundsPerLabel = DEFAULT_ROUNDS_PER_LABEL;
-	let exporting = false;
-	let exportError = '';
-	let exportMessage = '';
-	let hideChoices = false;
+	let roundsPerLabel = $state(DEFAULT_ROUNDS_PER_LABEL);
+	let lastUsedRoundsPerLabel = $state(DEFAULT_ROUNDS_PER_LABEL);
+	let exporting = $state(false);
+	let exportError = $state('');
+	let exportMessage = $state('');
+	let hideChoices = $state(false);
 	let hideChoicesTimeout: ReturnType<typeof setTimeout> | null = null;
-	let autoPlayNext = true;
+	let autoPlayNext = $state(true);
 
 	const objectUrls: string[] = [];
 
-	$: labelA = pairA.trim() || '詞語 A';
-	$: labelB = pairB.trim() || '詞語 B';
-	$: readyForTest =
-		recordings.A.length >= MIN_RECORDINGS_FOR_TEST &&
-		recordings.B.length >= MIN_RECORDINGS_FOR_TEST;
-	$: normalizedRounds = clampRounds(roundsPerLabel);
-	$: totalRounds = testItems.length || normalizedRounds * 2;
-	$: progressText =
-		testActive && testItems.length ? `第 ${currentTestIndex + 1} / ${testItems.length} 題` : '';
-	$: accuracy = testComplete && testItems.length ? Math.round((score / testItems.length) * 100) : 0;
-	$: timerDisplay = isRecording ? formatDuration(recordingTimer) : '00:00';
-	$: hasRecordings = recordings.A.length + recordings.B.length > 0;
-	$: canExport = hasRecordings && testItems.length > 0;
+	let labelA = $derived(pairA.trim() || '詞語 A');
+	let labelB = $derived(pairB.trim() || '詞語 B');
+	let readyForTest = $derived(
+		recordings.A.length >= MIN_RECORDINGS_FOR_TEST && recordings.B.length >= MIN_RECORDINGS_FOR_TEST
+	);
+	let normalizedRounds = $derived(clampRounds(roundsPerLabel));
+	let totalRounds = $derived(testItems.length || normalizedRounds * 2);
+	let progressText = $derived(
+		testActive && testItems.length ? `第 ${currentTestIndex + 1} / ${testItems.length} 題` : ''
+	);
+	let accuracy = $derived(
+		testComplete && testItems.length ? Math.round((score / testItems.length) * 100) : 0
+	);
+	let timerDisplay = $derived(isRecording ? formatDuration(recordingTimer) : '00:00');
+	let hasRecordings = $derived(recordings.A.length + recordings.B.length > 0);
+	let canExport = $derived(hasRecordings && testItems.length > 0);
 
 	async function ensureRecorder() {
 		if (!browser) {
@@ -364,12 +367,12 @@
 				<p>已錄 {recordings.A.length} 次（建議 ≧ {RECOMMENDED_RECORDINGS} 次）</p>
 				<div class="record-actions">
 					<button
-						on:click={() => startRecording('A')}
+						onclick={() => startRecording('A')}
 						disabled={!pairA.trim() || (isRecording && isRecording !== 'A')}
 					>
 						開始錄音
 					</button>
-					<button on:click={stopRecording} disabled={isRecording !== 'A'}>停止</button>
+					<button onclick={stopRecording} disabled={isRecording !== 'A'}>停止</button>
 				</div>
 				{#if isRecording === 'A'}
 					<p class="recording-indicator">正在錄 {labelA} ⋯⋯ {timerDisplay}</p>
@@ -381,7 +384,7 @@
 								<span>第 {rec.index} 次</span>
 								<audio controls src={rec.url}></audio>
 							</div>
-							<button class="delete" on:click={() => removeRecording('A', rec.id)}>重錄</button>
+							<button class="delete" onclick={() => removeRecording('A', rec.id)}>重錄</button>
 						</li>
 					{/each}
 				</ul>
@@ -391,12 +394,12 @@
 				<p>已錄 {recordings.B.length} 次（建議 ≧ {RECOMMENDED_RECORDINGS} 次）</p>
 				<div class="record-actions">
 					<button
-						on:click={() => startRecording('B')}
+						onclick={() => startRecording('B')}
 						disabled={!pairB.trim() || (isRecording && isRecording !== 'B')}
 					>
 						開始錄音
 					</button>
-					<button on:click={stopRecording} disabled={isRecording !== 'B'}>停止</button>
+					<button onclick={stopRecording} disabled={isRecording !== 'B'}>停止</button>
 				</div>
 				{#if isRecording === 'B'}
 					<p class="recording-indicator">正在錄 {labelB} ⋯⋯ {timerDisplay}</p>
@@ -408,13 +411,13 @@
 								<span>第 {rec.index} 次</span>
 								<audio controls src={rec.url}></audio>
 							</div>
-							<button class="delete" on:click={() => removeRecording('B', rec.id)}>重錄</button>
+							<button class="delete" onclick={() => removeRecording('B', rec.id)}>重錄</button>
 						</li>
 					{/each}
 				</ul>
 			</div>
 		</div>
-		<button class="secondary" on:click={resetAll}>重新開始</button>
+		<button class="secondary" onclick={resetAll}>重新開始</button>
 	</section>
 
 	<section>
@@ -441,23 +444,23 @@
 		{#if testError}
 			<p class="error">{testError}</p>
 		{/if}
-		<button on:click={startTest} disabled={!readyForTest}>開始測驗</button>
+		<button onclick={startTest} disabled={!readyForTest}>開始測驗</button>
 
 		{#if testActive}
 			<div class="test-panel">
 				<p class="progress">{progressText}</p>
-				<button class="play" on:click={playCurrentSample}>播放題目</button>
+				<button class="play" onclick={playCurrentSample}>播放題目</button>
 				<div class="guess-buttons" class:collapsed={hideChoices}>
 					<button
 						class="choice"
-						on:click={() => submitGuess('A')}
+						onclick={() => submitGuess('A')}
 						disabled={testItems[currentTestIndex]?.response !== null}
 					>
 						{labelA}
 					</button>
 					<button
 						class="choice"
-						on:click={() => submitGuess('B')}
+						onclick={() => submitGuess('B')}
 						disabled={testItems[currentTestIndex]?.response !== null}
 					>
 						{labelB}
@@ -489,7 +492,7 @@
 		{/if}
 
 		<div class="export-panel">
-			<button class="secondary" on:click={exportReport} disabled={!canExport || exporting}>
+			<button class="secondary" onclick={exportReport} disabled={!canExport || exporting}>
 				{exporting ? '匯出中⋯⋯' : '匯出報告（ZIP）'}
 			</button>
 			<p class="hint">
