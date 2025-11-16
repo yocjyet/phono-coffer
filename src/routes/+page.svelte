@@ -40,7 +40,7 @@
 	const localeNames: Record<Locale, string> = {
 		'zh-hant': '繁體中文',
 		en: 'English',
-		'zh-cn': '简体中文',
+		'zh-hans': '简体中文',
 		ja: '日本語'
 	};
 
@@ -790,18 +790,17 @@
 							>
 								<div>
 									<p class="text-sm font-semibold">{session.pair.A} / {session.pair.B}</p>
-									{@const timestamp = new Date(session.createdAt).toLocaleString()}
-									<p class="text-xs text-gray-600">
-										{m.session_meta(
-											{
-												timestamp,
-												score: session.score,
-												total: session.totalRounds,
-												accuracy: session.accuracy
-											},
-											{ locale: activeLocale }
-										)}
-									</p>
+								<p class="text-xs text-gray-600">
+									{m.session_meta(
+										{
+											timestamp: new Date(session.createdAt).toLocaleString(),
+											score: session.score,
+											total: session.totalRounds,
+											accuracy: session.accuracy
+										},
+										{ locale: activeLocale }
+									)}
+								</p>
 									<p class="text-xs text-gray-600">
 										{m.correct_wrong_summary(
 											{
