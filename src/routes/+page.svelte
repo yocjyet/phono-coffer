@@ -11,6 +11,7 @@
 	import IconHeadphones from '~icons/mdi/headphones';
 	import IconExport from '~icons/mdi/export-variant';
 	import IconPower from '~icons/mdi/power';
+	import IconDelete from '~icons/mdi/delete-outline';
 	import {
 		buildSampleSet,
 		clampRounds,
@@ -658,9 +659,10 @@
 		</div>
 		<button
 			onclick={() => confirmReset()}
-			class="rounded-lg bg-gray-800 px-4 py-2 font-semibold text-white hover:bg-gray-900"
+			class="flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2 font-semibold text-white hover:bg-red-700"
 		>
-			{m.clear_recordings()}
+			<IconDelete class="h-5 w-5" aria-hidden="true" />
+			<span>{m.clear_recordings()}</span>
 		</button>
 	</section>
 
