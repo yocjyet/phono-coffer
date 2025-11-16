@@ -57,9 +57,7 @@
 	}
 
 	function fallbackLabelName(id: Label) {
-		if (id === 'A') return m.label_word_a();
-		if (id === 'B') return m.label_word_b();
-		return id;
+		return m.label_word_generic({ id }) || id;
 	}
 
 	function nextLabelId(existing: Label[]) {
@@ -676,11 +674,9 @@
 			{#each labelOptions as option, index (option.id)}
 				<div class="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-gray-50/70 p-4">
 					<div class="flex items-center justify-between gap-3">
-						<div class="flex items-center gap-2">
+						<div class="flex items-center gap-2 text-sm font-semibold text-gray-700">
 							<IconTag class="h-4 w-4 text-blue-600" aria-hidden="true" />
-							<span class="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-gray-600">
-								{option.id}
-							</span>
+							<span>{m.label_word_generic({ id: option.id })}</span>
 						</div>
 						{#if labelOptions.length > 2}
 							<button
