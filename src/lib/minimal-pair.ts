@@ -115,6 +115,77 @@ export type ReportPayload = {
 	tests: ReportTestItem[];
 };
 
+function escapeMarkdownCell(value: string) {
+	return value.replace(/\|/g, '\\|').replace(/\r?\n|\r/g, ' ').trim() || '-';
+}
+
+function createReportMarkdown(payload: ReportPayload) {
+	const labelMap: Record<Label, string> = {
+		A: payload.pair.A?.trim() || '詞語 A',
+		B: payload.pair.B?.trim() || '詞語 B'
+	};
+	const accuracy =
+		payload.totals.questions > 0
+			? Math.round((payload.totals.score / payload.totals.questions) * 100)
+			: 0;
+	const lines: string[] = [];
+
+	lines.push('# 最小對測驗報告', '');
+	lines.push(`- 產生時間：${payload.generatedAt}`);
+	lines.push(`- 詞語 A：${labelMap.A}`);
+	lines.push(`- 詞語 B：${labelMap.B}`, '');
+
+	lines.push('## 測驗設定', '');
+	lines.push(`- 建議輪次（每詞）：${payload.settings.recommendedRoundsPerLabel}`);
+	lines.push(`- 要求輪次（每詞）：${payload.settings.requestedRoundsPerLabel}`);
+	lines.push(`- 實際輪次（每詞）：${payload.settings.executedRoundsPerLabel}`, '');
+
+	lines.push('## 測驗總結', '');
+	lines.push(`- 詞語 A 錄音數：${payload.totals.recordingsA}`);
+	lines.push(`- 詞語 B 錄音數：${payload.totals.recordingsB}`);
+	lines.push(`- 題目總數：${payload.totals.questions}`);
+	lines.push(`- 得分：${payload.totals.score}`);
+	lines.push(`- 正確率：${accuracy}%`, '');
+
+	lines.push('## 錄音列表', '');
+	if (payload.recordings.length) {
+		lines.push('| 標籤 | 詞語 | 錄音序號 | 檔名 |');
+		lines.push('| --- | --- | --- | --- |');
+		payload.recordings.forEach((rec) => {
+			lines.push(
+				`| ${rec.label} | ${escapeMarkdownCell(labelMap[rec.label])} | ${rec.index} | ${escapeMarkdownCell(rec.filename)} |`
+			);
+		});
+		lines.push('');
+	} else {
+		lines.push('尚無錄音可列出。', '');
+	}
+
+	lines.push('## 測驗題目', '');
+	if (payload.tests.length) {
+		lines.push('| 題號 | 播放詞語 | 錄音檔 | 答案 | 判定 |');
+		lines.push('| --- | --- | --- | --- | --- |');
+		payload.tests.forEach((item) => {
+			const played = escapeMarkdownCell(labelMap[item.playedLabel]);
+			const recordingName = escapeMarkdownCell(item.recordingFilename ?? '（未附檔名）');
+			const response =
+				item.response === null
+					? '未作答'
+					: escapeMarkdownCell(labelMap[item.response]);
+			const result =
+				item.correct === null ? '未評分' : item.correct ? '正確' : '錯誤';
+			lines.push(
+				`| ${item.order} | ${played} | ${recordingName} | ${response} | ${result} |`
+			);
+		});
+		lines.push('');
+	} else {
+		lines.push('尚未進行測驗。', '');
+	}
+
+	return `${lines.join('\n').trim()}\n`;
+}
+
 function extensionFromMimeType(mimeType: string) {
 	const base = mimeType.split(';')[0]?.trim().toLowerCase();
 	switch (base) {
@@ -191,6 +262,7 @@ export async function createReportZip(params: {
 	};
 
 	zip.file('report.json', JSON.stringify(payload, null, 2));
+	zip.file('report.md', createReportMarkdown(payload));
 	const blob = await zip.generateAsync({ type: 'blob' });
 	return {
 		blob,
