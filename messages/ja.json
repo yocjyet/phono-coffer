@@ -1,8 +1,8 @@
 {
 	"$schema": "https://inlang.com/schema/inlang-message-format",
-	"app_title": "最小ペア自己テスト",
+	"app_title": "ミニマル・ペア自己テスト",
 	"language_label": "表示言語",
-	"step_input_title": "1. 最小ペアの単語を入力",
+	"step_input_title": "1. ミニマル・ペアの単語を入力",
 	"label_word_a": "単語 A",
 	"label_word_b": "単語 B",
 	"placeholder_word_a": "例: ship",
