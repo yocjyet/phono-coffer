@@ -3,6 +3,14 @@
 	import { onDestroy } from 'svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { getLocale, locales, setLocale } from '$lib/paraglide/runtime';
+	import IconTranslate from '~icons/mdi/translate-variant';
+	import IconMicrophone from '~icons/mdi/microphone';
+	import IconStopCircle from '~icons/mdi/stop-circle';
+	import IconRefresh from '~icons/mdi/refresh';
+	import IconPlayCircle from '~icons/mdi/play-circle';
+	import IconHeadphones from '~icons/mdi/headphones';
+	import IconExport from '~icons/mdi/export-variant';
+	import IconPower from '~icons/mdi/power';
 	import {
 		buildSampleSet,
 		clampRounds,
@@ -533,7 +541,10 @@
 		<label
 			class="flex flex-col gap-1 text-sm font-semibold text-gray-700 sm:flex-row sm:items-center sm:gap-3"
 		>
-			<span>{m.language_label()}</span>
+			<span class="flex items-center gap-2">
+				<IconTranslate class="h-4 w-4 text-blue-600" aria-hidden="true" />
+				{m.language_label()}
+			</span>
 			<select
 				value={activeLocale}
 				onchange={(event) =>
@@ -601,16 +612,18 @@
 						<button
 							onclick={() => startRecording(key as Label)}
 							disabled={!pairValue.trim() || (isRecording && !isActive)}
-							class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white enabled:hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+							class="flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white enabled:hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
 						>
-							{m.start_recording()}
+							<IconMicrophone class="h-5 w-5" aria-hidden="true" />
+							<span>{m.start_recording()}</span>
 						</button>
 						<button
 							onclick={stopRecording}
 							disabled={!isActive}
-							class="rounded-lg bg-gray-700 px-4 py-2 text-sm font-semibold text-white enabled:hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+							class="flex items-center justify-center gap-2 rounded-lg bg-gray-700 px-4 py-2 text-sm font-semibold text-white enabled:hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
 						>
-							{m.stop_recording()}
+							<IconStopCircle class="h-5 w-5" aria-hidden="true" />
+							<span>{m.stop_recording()}</span>
 						</button>
 					</div>
 					{#if isActive}
@@ -632,9 +645,10 @@
 								</div>
 								<button
 									onclick={() => removeRecording(key as Label, rec.id)}
-									class="rounded-lg bg-red-600 px-3 py-2 font-semibold text-white enabled:hover:bg-red-700"
+									class="flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 font-semibold text-white enabled:hover:bg-red-700"
 								>
-									{m.re_record()}
+									<IconRefresh class="h-4 w-4" aria-hidden="true" />
+									<span>{m.re_record()}</span>
 								</button>
 							</li>
 						{/each}
@@ -685,9 +699,10 @@
 			<button
 				onclick={startTest}
 				disabled={!readyForTest}
-				class="w-full rounded-xl bg-blue-600 px-4 py-3 text-lg font-semibold text-white enabled:hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+				class="flex w-full items-center justify-center gap-3 rounded-xl bg-blue-600 px-4 py-3 text-lg font-semibold text-white enabled:hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
 			>
-				{m.start_test()}
+				<IconPlayCircle class="h-6 w-6" aria-hidden="true" />
+				<span>{m.start_test()}</span>
 			</button>
 		{/if}
 
@@ -698,16 +713,18 @@
 
 					<button
 						onclick={terminateSession}
-						class="w-fit rounded-lg bg-red-600 px-4 py-2 font-semibold text-white hover:bg-red-700"
+						class="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 font-semibold text-white hover:bg-red-700"
 					>
-						{m.terminate_test()}
+						<IconPower class="h-5 w-5" aria-hidden="true" />
+						<span>{m.terminate_test()}</span>
 					</button>
 				</div>
 				<button
 					onclick={playCurrentSample}
-					class="w-full rounded-lg bg-green-600 px-4 py-2 font-semibold text-white hover:bg-green-700"
+					class="flex w-full items-center justify-center gap-3 rounded-lg bg-green-600 px-4 py-2 font-semibold text-white hover:bg-green-700"
 				>
-					{m.play_prompt()}
+					<IconHeadphones class="h-5 w-5" aria-hidden="true" />
+					<span>{m.play_prompt()}</span>
 				</button>
 				<div
 					class={`flex transform gap-3 transition ${hideChoices ? 'pointer-events-none scale-95 opacity-0' : 'opacity-100'}`}
@@ -770,9 +787,10 @@
 				<button
 					onclick={() => exportReport()}
 					disabled={!canExport || exporting}
-					class="w-full rounded-lg bg-gray-800 px-4 py-2 font-semibold text-white enabled:hover:bg-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
+					class="flex w-full items-center justify-center gap-2 rounded-lg bg-gray-800 px-4 py-2 font-semibold text-white enabled:hover:bg-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
 				>
-					{exporting ? m.export_btn_loading() : m.export_btn_ready()}
+					<IconExport class="h-5 w-5" aria-hidden="true" />
+					<span>{exporting ? m.export_btn_loading() : m.export_btn_ready()}</span>
 				</button>
 				<p class="text-sm text-gray-600">
 					{m.export_info()}
@@ -822,9 +840,10 @@
 									<button
 										onclick={() => exportReport(session.id)}
 										disabled={exporting}
-										class="rounded-lg bg-gray-800 px-3 py-2 text-sm font-semibold text-white enabled:hover:bg-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
+										class="flex items-center gap-2 rounded-lg bg-gray-800 px-3 py-2 text-sm font-semibold text-white enabled:hover:bg-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
 									>
-										{m.export_button()}
+										<IconExport class="h-4 w-4" aria-hidden="true" />
+										<span>{m.export_button()}</span>
 									</button>
 								</div>
 							</li>
