@@ -12,6 +12,8 @@
 	import IconExport from '~icons/mdi/export-variant';
 	import IconPower from '~icons/mdi/power';
 	import IconDelete from '~icons/mdi/delete-outline';
+	import IconPlus from '~icons/mdi/plus';
+	import IconTag from '~icons/mdi/tag-outline';
 	import {
 		buildSampleSet,
 		clampRounds,
@@ -25,6 +27,7 @@
 		RECOMMENDED_RECORDINGS,
 		shuffle,
 		type Label,
+		type LabelDefinition,
 		type Recording,
 		type RecordingsMap,
 		type TestItem,
@@ -41,8 +44,39 @@
 		accuracy: number;
 		createdAt: string;
 		exported: boolean;
-		pair: { A: string; B: string };
+		labels: LabelDefinition[];
 	};
+
+	const DEFAULT_LABELS: LabelDefinition[] = [
+		{ id: 'A', value: '' },
+		{ id: 'B', value: '' }
+	];
+
+	function cloneLabels(labels: LabelDefinition[]) {
+		return labels.map((label) => ({ ...label }));
+	}
+
+	function fallbackLabelName(id: Label) {
+		if (id === 'A') return m.label_word_a();
+		if (id === 'B') return m.label_word_b();
+		return id;
+	}
+
+	function nextLabelId(existing: Label[]) {
+		const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+		for (const char of alphabet) {
+			if (!existing.includes(char)) {
+				return char;
+			}
+		}
+		let counter = existing.length + 1;
+		let candidate = '';
+		do {
+			candidate = `L${counter}`;
+			counter += 1;
+		} while (existing.includes(candidate));
+		return candidate;
+	}
 
 	type Locale = (typeof locales)[number];
 
@@ -86,12 +120,12 @@
 		'audio/aac'
 	];
 
-	const LABEL_KEYS: Label[] = ['A', 'B'];
+	let labelOptions = $state<LabelDefinition[]>(cloneLabels(DEFAULT_LABELS));
 
-	let pairA = $state('');
-	let pairB = $state('');
-
-	let recordings = $state<RecordingsMap>({ A: [], B: [] });
+	let recordings = $state<RecordingsMap>({
+		A: [],
+		B: []
+	});
 	let recordError = $state('');
 	let testError = $state('');
 
@@ -111,7 +145,7 @@
 	let testComplete = $state(false);
 	let currentSessionId = $state<string | null>(null);
 	let completedTests = $state<CompletedTest[]>([]);
-	let currentPairSnapshot = $state<{ A: string; B: string } | null>(null);
+	let currentLabelsSnapshot = $state<LabelDefinition[] | null>(null);
 	let currentAudio: HTMLAudioElement | null = null;
 	let roundsPerLabel = $state(DEFAULT_ROUNDS_PER_LABEL);
 	let lastUsedRoundsPerLabel = $state(DEFAULT_ROUNDS_PER_LABEL);
@@ -124,13 +158,66 @@
 
 	const objectUrls: string[] = [];
 
-	let labelA = $derived(pairA.trim() || m.label_word_a());
-	let labelB = $derived(pairB.trim() || m.label_word_b());
+	function ensureRecordingBucket(label: Label) {
+		if (!recordings[label]) {
+			recordings = {
+				...recordings,
+				[label]: []
+			};
+		}
+	}
+
+	function updateLabelValue(id: Label, value: string) {
+		labelOptions = labelOptions.map((option) => (option.id === id ? { ...option, value } : option));
+	}
+
+	function addLabelOption() {
+		const existingIds = labelOptions.map((option) => option.id);
+		const newId = nextLabelId(existingIds);
+		labelOptions = [...labelOptions, { id: newId, value: '' }];
+		ensureRecordingBucket(newId);
+	}
+
+	function removeLabelOption(id: Label) {
+		if (labelOptions.length <= 2) return;
+		if (isRecording === id) {
+			stopRecording();
+		}
+		const bucket = recordings[id] ?? [];
+		bucket.forEach((rec) => {
+			URL.revokeObjectURL(rec.url);
+			const idx = objectUrls.indexOf(rec.url);
+			if (idx !== -1) {
+				objectUrls.splice(idx, 1);
+			}
+		});
+		const { [id]: _removed, ...rest } = recordings;
+		recordings = rest;
+		labelOptions = labelOptions.filter((option) => option.id !== id);
+	}
+
+	function hasMissingLabelValues() {
+		return labelOptions.some((option) => !option.value.trim());
+	}
+
+	const labelDisplayMap = $derived(
+		labelOptions.reduce<Record<Label, string>>((acc, option) => {
+			const trimmed = option.value.trim();
+			acc[option.id] = trimmed || fallbackLabelName(option.id);
+			return acc;
+		}, {})
+	);
 	let readyForTest = $derived(
-		recordings.A.length >= MIN_RECORDINGS_FOR_TEST && recordings.B.length >= MIN_RECORDINGS_FOR_TEST
+		labelOptions.length >= 2 &&
+			labelOptions.every(
+				(option) =>
+					option.value.trim() && (recordings[option.id]?.length ?? 0) >= MIN_RECORDINGS_FOR_TEST
+			)
 	);
 	let normalizedRounds = $derived(clampRounds(roundsPerLabel));
-	let totalRounds = $derived(testItems.length || normalizedRounds * 2);
+	let totalRounds = $derived(
+		testItems.length || normalizedRounds * Math.max(labelOptions.length, 0)
+	);
 	let progressText = $derived(
 		testActive && testItems.length
 			? m.progress_label(
@@ -145,7 +232,9 @@
 	let correctAnswers = $derived(score);
 	let incorrectAnswers = $derived(Math.max(totalRounds - score, 0));
 	let timerDisplay = $derived(isRecording ? formatDuration(recordingTimer) : '00:00');
-	let hasRecordings = $derived(recordings.A.length + recordings.B.length > 0);
+	let hasRecordings = $derived(
+		labelOptions.some((option) => (recordings[option.id]?.length ?? 0) > 0)
+	);
 	let hasUnexportedTests = $derived(completedTests.some((test) => !test.exported));
 	let canExport = $derived(hasRecordings && completedTests.length > 0);
 
@@ -219,19 +308,21 @@
 		const blob = new Blob(audioChunks, { type: mimeType });
 		const url = URL.createObjectURL(blob);
 		objectUrls.push(url);
+		ensureRecordingBucket(recordingTarget);
+		const existing = recordings[recordingTarget] ?? [];
 
 		const newRecording: Recording = {
 			id: createId(),
 			label: recordingTarget,
 			blob,
 			url,
-			index: recordings[recordingTarget].length + 1,
+			index: existing.length + 1,
 			mimeType
 		};
 
 		recordings = {
 			...recordings,
-			[recordingTarget]: [...recordings[recordingTarget], newRecording]
+			[recordingTarget]: [...existing, newRecording]
 		};
 
 		audioChunks = [];
@@ -247,7 +338,8 @@
 	}
 
 	function removeRecording(label: Label, id: string) {
-		const updated = recordings[label].filter((rec) => {
+		const bucket = recordings[label] ?? [];
+		const updated = bucket.filter((rec) => {
 			if (rec.id === id) {
 				URL.revokeObjectURL(rec.url);
 				const idx = objectUrls.indexOf(rec.url);
@@ -269,7 +361,7 @@
 
 	async function startRecording(label: Label) {
 		recordError = '';
-		if (!pairA.trim() || !pairB.trim()) {
+		if (hasMissingLabelValues()) {
 			recordError = m.error_missing_pairs();
 			return;
 		}
@@ -282,6 +374,7 @@
 			if (!ok || !mediaRecorder) return;
 			audioChunks = [];
 			recordingTarget = label;
+			ensureRecordingBucket(label);
 			recordingTimer = 0;
 			stopTimer();
 			timerInterval = setInterval(() => {
@@ -323,12 +416,11 @@
 		clearHideChoicesTimer();
 		const perLabel = normalizedRounds;
 		lastUsedRoundsPerLabel = perLabel;
-		currentPairSnapshot = { A: labelA, B: labelB };
+		currentLabelsSnapshot = cloneLabels(labelOptions);
 
-		const selections = [
-			...buildSampleSet(recordings, 'A', perLabel),
-			...buildSampleSet(recordings, 'B', perLabel)
-		];
+		const selections = labelOptions.flatMap((option) =>
+			buildSampleSet(recordings, option.id, perLabel)
+		);
 
 		const queue = shuffle(selections).map((sample) => ({
 			id: createId(),
@@ -391,7 +483,10 @@
 	}
 
 	function resetAll() {
-		recordings = { A: [], B: [] };
+		recordings = labelOptions.reduce<RecordingsMap>((acc, option) => {
+			acc[option.id] = [];
+			return acc;
+		}, {});
 		recordError = '';
 		testError = '';
 		testItems = [];
@@ -413,7 +508,7 @@
 		hideChoices = false;
 		clearHideChoicesTimer();
 		completedTests = [];
-		currentPairSnapshot = null;
+		currentLabelsSnapshot = null;
 	}
 
 	onDestroy(() => {
@@ -441,11 +536,12 @@
 	}
 
 	function archiveCompletedTestSession() {
-		if (!currentSessionId || !testItems.length || !currentPairSnapshot) return;
+		if (!currentSessionId || !testItems.length || !currentLabelsSnapshot) return;
 		const alreadySaved = completedTests.some((session) => session.id === currentSessionId);
 		if (alreadySaved) return;
 		const total = testItems.length;
-		const executedRoundsPerLabel = total / 2;
+		const labelCount = currentLabelsSnapshot.length || 1;
+		const executedRoundsPerLabel = total / labelCount;
 		const snapshot: CompletedTest = {
 			id: currentSessionId,
 			items: testItems.map((item) => ({ ...item })),
@@ -456,11 +552,11 @@
 			accuracy: total ? Math.round((score / total) * 100) : 0,
 			createdAt: new Date().toISOString(),
 			exported: false,
-			pair: currentPairSnapshot
+			labels: cloneLabels(currentLabelsSnapshot)
 		};
 		completedTests = [...completedTests, snapshot];
 		currentSessionId = null;
-		currentPairSnapshot = null;
+		currentLabelsSnapshot = null;
 	}
 
 	function markSessionExported(sessionId: string) {
@@ -489,13 +585,13 @@
 			const { blob } = await createReportZip({
 				recordings,
 				testItems: target.items,
-				pair: target.pair,
+				labels: target.labels,
 				requestedRoundsPerLabel: target.requestedRoundsPerLabel,
 				executedRoundsPerLabel: target.executedRoundsPerLabel,
 				score: target.score
 			});
 			const exportTimestamp = new Date(target.createdAt).getTime();
-			const filename = createReportFilename(target.pair, exportTimestamp);
+			const filename = createReportFilename(target.labels, exportTimestamp);
 			downloadBlob(blob, filename);
 			markSessionExported(target.id);
 			exportMessage = m.export_success();
@@ -561,25 +657,48 @@
 
 	<section class="space-y-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
 		<h2 class="text-xl font-semibold">{m.step_input_title()}</h2>
-		<div class="grid gap-4 sm:grid-cols-2">
-			<label class="space-y-2 font-medium">
-				<span>{m.label_word_a()}</span>
-				<input
-					type="text"
-					placeholder={m.placeholder_word_a()}
-					bind:value={pairA}
-					class="w-full rounded-lg border border-gray-300 px-3 py-2 text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-				/>
-			</label>
-			<label class="space-y-2 font-medium">
-				<span>{m.label_word_b()}</span>
-				<input
-					type="text"
-					placeholder={m.placeholder_word_b()}
-					bind:value={pairB}
-					class="w-full rounded-lg border border-gray-300 px-3 py-2 text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-				/>
-			</label>
+		<div class="space-y-3">
+			{#each labelOptions as option, index (option.id)}
+				<div class="flex items-center justify-between gap-3 rounded-xl border border-gray-200 p-4">
+					<div class="flex items-center justify-between">
+						<span class="flex items-center gap-2">
+							<IconTag class="h-4 w-4 text-blue-600" aria-hidden="true" />
+						</span>
+					</div>
+					<input
+						type="text"
+						value={option.value}
+						oninput={(event) =>
+							updateLabelValue(option.id, (event.currentTarget as HTMLInputElement).value)}
+						placeholder={index === 0
+							? m.placeholder_word_a()
+							: index === 1
+								? m.placeholder_word_b()
+								: m.placeholder_word_b()}
+						class="w-full rounded-lg border border-gray-300 px-3 py-2 text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+					/>
+					{#if labelOptions.length > 2}
+						<button
+							type="button"
+							onclick={() => removeLabelOption(option.id)}
+							class="text-sm font-semibold text-gray-500 hover:text-red-600"
+							aria-label={`Remove option ${labelDisplayMap[option.id]}`}
+						>
+							Remove
+						</button>
+					{/if}
+				</div>
+			{/each}
+		</div>
+		<div class="flex justify-end">
+			<button
+				onclick={addLabelOption}
+				class="flex items-center gap-2 rounded-lg border border-dashed border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:border-blue-500 hover:text-blue-600"
+				type="button"
+			>
+				<IconPlus class="h-4 w-4" aria-hidden="true" />
+				Add option
+			</button>
 		</div>
 		<p class="text-sm text-gray-600">{m.step_input_hint()}</p>
 	</section>
@@ -590,11 +709,10 @@
 			<p class="font-semibold text-red-600">{recordError}</p>
 		{/if}
 		<div class="grid gap-4 lg:grid-cols-2">
-			{#each LABEL_KEYS as key}
-				{@const labelText = key === 'A' ? labelA : labelB}
-				{@const items = recordings[key]}
-				{@const isActive = isRecording === key}
-				{@const pairValue = key === 'A' ? pairA : pairB}
+			{#each labelOptions as option (option.id)}
+				{@const labelText = labelDisplayMap[option.id]}
+				{@const items = recordings[option.id] ?? []}
+				{@const isActive = isRecording === option.id}
 				<div
 					class={`rounded-2xl border bg-gray-50 p-4 shadow-sm transition ${
 						isActive ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-200'
@@ -611,8 +729,8 @@
 					</div>
 					<div class="flex flex-wrap gap-2">
 						<button
-							onclick={() => startRecording(key as Label)}
-							disabled={!pairValue.trim() || (isRecording && !isActive)}
+							onclick={() => startRecording(option.id)}
+							disabled={!option.value.trim() || (!!isRecording && !isActive)}
 							class="flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white enabled:hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
 						>
 							<IconMicrophone class="h-5 w-5" aria-hidden="true" />
@@ -645,7 +763,7 @@
 									<audio controls src={rec.url} class="w-full"></audio>
 								</div>
 								<button
-									onclick={() => removeRecording(key as Label, rec.id)}
+									onclick={() => removeRecording(option.id, rec.id)}
 									class="flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 font-semibold text-white enabled:hover:bg-red-700"
 								>
 									<IconRefresh class="h-4 w-4" aria-hidden="true" />
@@ -729,22 +847,17 @@
 					<span>{m.play_prompt()}</span>
 				</button>
 				<div
-					class={`flex transform gap-3 transition ${hideChoices ? 'pointer-events-none scale-95 opacity-0' : 'opacity-100'}`}
+					class={`grid transform gap-3 transition ${hideChoices ? 'pointer-events-none scale-95 opacity-0' : 'opacity-100'} sm:grid-cols-2`}
 				>
-					<button
-						class="choice flex-1 rounded-xl bg-blue-600 px-4 py-3 text-lg font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-						onclick={() => submitGuess('A')}
-						disabled={testItems[currentTestIndex]?.response !== null}
-					>
-						{labelA}
-					</button>
-					<button
-						class="choice flex-1 rounded-xl bg-indigo-600 px-4 py-3 text-lg font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
-						onclick={() => submitGuess('B')}
-						disabled={testItems[currentTestIndex]?.response !== null}
-					>
-						{labelB}
-					</button>
+					{#each labelOptions as option (option.id)}
+						<button
+							class="choice rounded-xl bg-blue-600 px-4 py-3 text-lg font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+							onclick={() => submitGuess(option.id)}
+							disabled={testItems[currentTestIndex]?.response !== null}
+						>
+							{labelDisplayMap[option.id]}
+						</button>
+					{/each}
 				</div>
 			</div>
 		{/if}
@@ -762,11 +875,9 @@
 				</p>
 				<ol class="space-y-2 text-sm text-gray-700">
 					{#each testItems as item, index}
-						{@const correctLabel = item.sample.label === 'A' ? labelA : labelB}
+						{@const correctLabel = labelDisplayMap[item.sample.label] ?? item.sample.label}
 						{@const answerLabel = item.response
-							? item.response === 'A'
-								? labelA
-								: labelB
+							? (labelDisplayMap[item.response] ?? item.response)
 							: m.unanswered()}
 						<li class="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2">
 							<span>
@@ -807,11 +918,14 @@
 					</h3>
 					<ul class="space-y-2">
 						{#each [...completedTests].slice().reverse() as session}
+							{@const sessionNames = session.labels.map(
+								(label) => label.value.trim() || fallbackLabelName(label.id)
+							)}
 							<li
 								class="flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between"
 							>
 								<div>
-									<p class="text-sm font-semibold">{session.pair.A} / {session.pair.B}</p>
+									<p class="text-sm font-semibold">{sessionNames.join(' / ')}</p>
 									<p class="text-xs text-gray-600">
 										{m.session_meta(
 											{

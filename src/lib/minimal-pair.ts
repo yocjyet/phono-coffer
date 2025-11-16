@@ -1,6 +1,11 @@
 import JSZip from 'jszip';
 
-export type Label = 'A' | 'B';
+export type Label = string;
+
+export type LabelDefinition = {
+	id: Label;
+	value: string;
+};
 
 export type Recording = {
 	id: string;
@@ -67,8 +72,8 @@ export function shuffle<T>(items: T[]) {
 }
 
 export function buildSampleSet(recordings: RecordingsMap, label: Label, count: number) {
-	const available = recordings[label];
-	if (!available?.length) return [];
+	const available = recordings[label] ?? [];
+	if (!available.length) return [];
 	if (available.length >= count) {
 		return pickRandom(available, count);
 	}
@@ -97,17 +102,18 @@ export type ReportTestItem = {
 	correct: boolean | null;
 };
 
+export type LabelsSnapshot = LabelDefinition[];
+
 export type ReportPayload = {
 	generatedAt: string;
-	pair: { A: string; B: string };
+	labels: LabelsSnapshot;
 	settings: {
 		recommendedRoundsPerLabel: number;
 		requestedRoundsPerLabel: number;
 		executedRoundsPerLabel: number;
 	};
 	totals: {
-		recordingsA: number;
-		recordingsB: number;
+		perLabel: Record<Label, number>;
 		questions: number;
 		score: number;
 	};
@@ -120,10 +126,18 @@ function escapeMarkdownCell(value: string) {
 }
 
 function createReportMarkdown(payload: ReportPayload) {
-	const labelMap: Record<Label, string> = {
-		A: payload.pair.A?.trim() || '詞語 A',
-		B: payload.pair.B?.trim() || '詞語 B'
-	};
+	const fallbackLabels =
+		payload.labels.length > 0
+			? payload.labels
+			: [
+					{ id: 'A', value: '詞語 A' },
+					{ id: 'B', value: '詞語 B' }
+				];
+	const labelMap = fallbackLabels.reduce<Record<Label, string>>((acc, entry, index) => {
+		const fallback = `詞語 ${String.fromCharCode(65 + index)}`;
+		acc[entry.id] = entry.value?.trim() || fallback;
+		return acc;
+	}, {});
 	const accuracy =
 		payload.totals.questions > 0
 			? Math.round((payload.totals.score / payload.totals.questions) * 100)
@@ -132,9 +146,20 @@ function createReportMarkdown(payload: ReportPayload) {
 	const lines: string[] = [];
 
 	lines.push('# 最小對測驗報告', '');
-	lines.push(`- 產生時間：${payload.generatedAt}`);
-	lines.push(`- 詞語 A：${labelMap.A}`);
-	lines.push(`- 詞語 B：${labelMap.B}`, '');
+	lines.push(`- 產生時間：${payload.generatedAt}`, '');
+
+	lines.push('## 詞語列表', '');
+	if (Object.keys(labelMap).length) {
+		lines.push('| 標籤 | 詞語 | 錄音數 |');
+		lines.push('| --- | --- | --- |');
+		Object.keys(labelMap).forEach((key) => {
+			const count = payload.totals.perLabel[key] ?? 0;
+			lines.push(`| ${key} | ${escapeMarkdownCell(labelMap[key])} | ${count} |`);
+		});
+		lines.push('');
+	} else {
+		lines.push('尚未設定詞語。', '');
+	}
 
 	lines.push('## 測驗設定', '');
 	lines.push(`- 建議輪次（每詞）：${payload.settings.recommendedRoundsPerLabel}`);
@@ -142,8 +167,6 @@ function createReportMarkdown(payload: ReportPayload) {
 	lines.push(`- 實際輪次（每詞）：${payload.settings.executedRoundsPerLabel}`, '');
 
 	lines.push('## 測驗總結', '');
-	lines.push(`- 詞語 A 錄音數：${payload.totals.recordingsA}`);
-	lines.push(`- 詞語 B 錄音數：${payload.totals.recordingsB}`);
 	lines.push(`- 題目總數：${payload.totals.questions}`);
 	lines.push(`- 答對題數：${payload.totals.score}`);
 	lines.push(`- 答錯題數：${incorrectCount}`);
@@ -211,16 +234,20 @@ function extensionFromMimeType(mimeType: string) {
 export async function createReportZip(params: {
 	recordings: RecordingsMap;
 	testItems: TestItem[];
-	pair: { A: string; B: string };
+	labels: LabelsSnapshot;
 	requestedRoundsPerLabel: number;
 	executedRoundsPerLabel: number;
 	score: number;
 }) {
-	const { recordings, testItems, pair, requestedRoundsPerLabel, executedRoundsPerLabel, score } =
+	const { recordings, testItems, labels, requestedRoundsPerLabel, executedRoundsPerLabel, score } =
 		params;
 	const zip = new JSZip();
 	const recordingsFolder = zip.folder('recordings');
-	const flattened = [...recordings.A, ...recordings.B];
+	const labelOrder = [
+		...labels.map((label) => label.id),
+		...Object.keys(recordings).filter((key) => !labels.some((label) => label.id === key))
+	];
+	const flattened = labelOrder.flatMap((label) => recordings[label] ?? []);
 	const recordingEntries: ReportRecordingEntry[] = flattened.map((rec) => {
 		const extension = extensionFromMimeType(rec.mimeType);
 		const filename = `${rec.label}-${rec.index.toString().padStart(2, '0')}.${extension}`;
@@ -247,15 +274,17 @@ export async function createReportZip(params: {
 
 	const payload: ReportPayload = {
 		generatedAt: new Date().toISOString(),
-		pair,
+		labels,
 		settings: {
 			recommendedRoundsPerLabel: DEFAULT_ROUNDS_PER_LABEL,
 			requestedRoundsPerLabel,
 			executedRoundsPerLabel
 		},
 		totals: {
-			recordingsA: recordings.A.length,
-			recordingsB: recordings.B.length,
+			perLabel: labelOrder.reduce<Record<Label, number>>((acc, label) => {
+				acc[label] = recordings[label]?.length ?? 0;
+				return acc;
+			}, {}),
 			questions: testItems.length,
 			score
 		},
@@ -281,8 +310,16 @@ export function sanitizeFilenamePart(input: string) {
 	return stripped.replace(INVALID_FILENAME_CHARS, '-');
 }
 
-export function createReportFilename(pair: { A: string; B: string }, timestamp = Date.now()) {
-	const safeA = sanitizeFilenamePart(pair.A || '詞語A');
-	const safeB = sanitizeFilenamePart(pair.B || '詞語B');
-	return `minimal-pair-test_${safeA}_${safeB}_${timestamp}.zip`;
+export function createReportFilename(labels: LabelsSnapshot, timestamp = Date.now()) {
+	const safeNames = (labels.length
+		? labels
+		: [
+				{ id: 'A', value: '詞語A' },
+				{ id: 'B', value: '詞語B' }
+			]
+	)
+		.map((label) => sanitizeFilenamePart(label.value || label.id))
+		.filter(Boolean);
+	const labelSegment = safeNames.slice(0, 4).join('_') || 'labels';
+	return `minimal-pair-test_${labelSegment}_${timestamp}.zip`;
 }
