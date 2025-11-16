@@ -57,6 +57,14 @@ export type ReactionStats = {
 	incorrect: number | null;
 };
 
+export const UNANSWERED_GUESS = '__unanswered__';
+
+export type ConfusionMatrix = {
+	actual: Label[];
+	guessed: (Label | typeof UNANSWERED_GUESS)[];
+	counts: Record<Label, Record<Label | typeof UNANSWERED_GUESS, number>>;
+};
+
 function isTimed(item: TestItem): item is TestItem & { reactionTimeMs: number } {
 	return typeof item.reactionTimeMs === 'number' && Number.isFinite(item.reactionTimeMs);
 }
@@ -75,6 +83,53 @@ export function summarizeReactionTimes(items: TestItem[]): ReactionStats {
 		overall: average(timed),
 		correct: average(timed.filter((entry) => entry.correct)),
 		incorrect: average(timed.filter((entry) => entry.correct === false))
+	};
+}
+
+export function buildConfusionMatrix(items: TestItem[], labelOrder: Label[]): ConfusionMatrix {
+	const baseOrder = labelOrder.length
+		? [...labelOrder]
+		: Array.from(new Set(items.map((item) => item.sample.label)));
+	const actualSet = new Set(baseOrder);
+	items.forEach((item) => actualSet.add(item.sample.label));
+	const actual = [...baseOrder, ...Array.from(actualSet).filter((label) => !baseOrder.includes(label))];
+	const guessSet = new Set<Label | typeof UNANSWERED_GUESS>(baseOrder);
+	items.forEach((item) => {
+		if (item.response) {
+			guessSet.add(item.response);
+		}
+	});
+	guessSet.add(UNANSWERED_GUESS);
+	const guessed = [
+		...baseOrder,
+		...Array.from(guessSet).filter(
+			(label): label is Label => typeof label === 'string' && label !== UNANSWERED_GUESS && !baseOrder.includes(label)
+		),
+		UNANSWERED_GUESS
+	];
+	const counts: ConfusionMatrix['counts'] = {};
+	const ensureRow = (label: Label) => {
+		if (!counts[label]) {
+			counts[label] = {} as Record<Label | typeof UNANSWERED_GUESS, number>;
+			guessed.forEach((guess) => {
+				counts[label][guess] = 0;
+			});
+		}
+	};
+	actual.forEach((label) => ensureRow(label));
+	items.forEach((item) => {
+		const actualLabel = item.sample.label;
+		ensureRow(actualLabel);
+		const guessKey = (item.response ?? UNANSWERED_GUESS) as Label | typeof UNANSWERED_GUESS;
+		if (!(guessKey in counts[actualLabel])) {
+			counts[actualLabel][guessKey] = 0;
+		}
+		counts[actualLabel][guessKey] += 1;
+	});
+	return {
+		actual,
+		guessed,
+		counts
 	};
 }
 
@@ -151,6 +206,7 @@ export type ReportPayload = {
 	};
 	recordings: ReportRecordingEntry[];
 	reaction: ReactionStats;
+	confusion: ConfusionMatrix;
 	tests: ReportTestItem[];
 };
 
@@ -220,6 +276,26 @@ function createReportMarkdown(payload: ReportPayload) {
 		lines.push(`- 平均（答錯）：${formatReactionValue(payload.reaction.incorrect)}`, '');
 	} else {
 		lines.push('尚無反應時間資料。', '');
+	}
+
+	lines.push('## 錯誤交叉表', '');
+	if (payload.confusion.actual.length && payload.confusion.guessed.length) {
+		const headerCells = payload.confusion.guessed.map((guess) =>
+			guess === UNANSWERED_GUESS ? '未作答' : escapeMarkdownCell(labelMap[guess] ?? guess)
+		);
+		lines.push(`| 實際\\預測 | ${headerCells.join(' | ')} |`);
+		lines.push(`| --- | ${headerCells.map(() => '---').join(' | ')} |`);
+		payload.confusion.actual.forEach((actualLabel) => {
+			const row = payload.confusion.guessed.map((guess) => {
+				const count = payload.confusion.counts[actualLabel]?.[guess] ?? 0;
+				return count.toString();
+			});
+			const actualName = escapeMarkdownCell(labelMap[actualLabel] ?? actualLabel);
+			lines.push(`| ${actualName} | ${row.join(' | ')} |`);
+		});
+		lines.push('');
+	} else {
+		lines.push('尚無交叉表資料。', '');
 	}
 
 	lines.push('## 錄音列表', '');
@@ -327,6 +403,7 @@ export async function createReportZip(params: {
 	});
 
 	const reaction = summarizeReactionTimes(testItems);
+	const confusion = buildConfusionMatrix(testItems, labels.map((label) => label.id));
 
 	const payload: ReportPayload = {
 		generatedAt: new Date().toISOString(),
@@ -346,6 +423,7 @@ export async function createReportZip(params: {
 		},
 		recordings: recordingEntries,
 		reaction,
+		confusion,
 		tests
 	};
 

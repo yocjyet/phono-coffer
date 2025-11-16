@@ -32,7 +32,9 @@
 		type RecordingsMap,
 		type TestItem,
 		formatDuration,
-		summarizeReactionTimes
+		summarizeReactionTimes,
+		buildConfusionMatrix,
+		UNANSWERED_GUESS
 	} from '$lib/minimal-pair';
 
 	type TestRunItem = TestItem & {
@@ -234,6 +236,14 @@
 			return acc;
 		}, {})
 	);
+
+	function getDisplayLabel(id: Label) {
+		return labelDisplayMap[id] ?? fallbackLabelName(id);
+	}
+
+	function getGuessLabel(id: Label | typeof UNANSWERED_GUESS) {
+		return id === UNANSWERED_GUESS ? m.unanswered() : getDisplayLabel(id);
+	}
 	let readyForTest = $derived(
 		labelOptions.length >= 2 &&
 			labelOptions.every(
@@ -264,6 +274,7 @@
 	let hasUnexportedTests = $derived(completedTests.some((test) => !test.exported));
 	let canExport = $derived(hasRecordings && completedTests.length > 0);
 	let reactionStats = $derived(summarizeReactionTimes(testItems));
+	let confusionMatrix = $derived(buildConfusionMatrix(testItems, labelOptions.map((option) => option.id)));
 
 	function detectSupportedMimeType() {
 		if (
@@ -1004,6 +1015,54 @@
 						</li>
 					{/each}
 				</ol>
+				{#if confusionMatrix.actual.length && confusionMatrix.guessed.length}
+					<div class="space-y-2 rounded-xl border border-purple-100 bg-purple-50/70 p-3">
+						<p class="text-sm font-semibold text-gray-900">Mistake cross-tab</p>
+						<p class="text-xs text-gray-600">
+							Rows = actual prompt, columns = your guess. Diagonal cells show correct picks;
+							off-diagonal counts highlight false positives/negatives.
+						</p>
+						<div class="overflow-auto">
+							<table class="min-w-full border-collapse text-xs">
+								<thead>
+									<tr>
+										<th class="bg-white px-3 py-2 text-left font-semibold text-gray-600">
+											Actual \\ Predicted
+										</th>
+										{#each confusionMatrix.guessed as guess}
+											<th class="bg-gray-50 px-3 py-2 text-center font-semibold text-gray-800">
+												{getGuessLabel(guess)}
+											</th>
+										{/each}
+									</tr>
+								</thead>
+								<tbody>
+									{#each confusionMatrix.actual as actualLabel}
+										<tr>
+											<th class="bg-white px-3 py-2 text-left font-semibold text-gray-800">
+												{getDisplayLabel(actualLabel)}
+											</th>
+											{#each confusionMatrix.guessed as guess}
+												{@const count = confusionMatrix.counts[actualLabel]?.[guess] ?? 0}
+												<td
+													class={`border border-gray-200 px-3 py-2 text-center ${
+														actualLabel === guess
+															? 'bg-green-50 font-semibold text-green-700'
+															: count
+																? 'bg-red-50 text-red-700'
+																: 'text-gray-600'
+													}`}
+												>
+													{count}
+												</td>
+											{/each}
+										</tr>
+									{/each}
+								</tbody>
+							</table>
+						</div>
+					</div>
+				{/if}
 			</div>
 		{/if}
 
