@@ -758,20 +758,24 @@
 					{/if}
 					<div class="flex flex-wrap items-center gap-2">
 						<button
-							onclick={() => startRecording(option.id)}
-							disabled={!option.value.trim() || (!!isRecording && !isActive)}
-							class="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white enabled:hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+							type="button"
+							onclick={() => (isActive ? stopRecording() : startRecording(option.id))}
+							disabled={
+								(!isActive && !option.value.trim()) || (!!isRecording && !isActive)
+							}
+							class={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50 ${
+								isActive
+									? 'bg-gray-700 enabled:hover:bg-gray-800'
+									: 'bg-blue-600 enabled:hover:bg-blue-700'
+							}`}
 						>
-							<IconMicrophone class="h-5 w-5" aria-hidden="true" />
-							<span>{m.start_recording()}</span>
-						</button>
-						<button
-							onclick={stopRecording}
-							disabled={!isActive}
-							class="flex items-center gap-2 rounded-xl bg-gray-700 px-4 py-2 text-sm font-semibold text-white enabled:hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
-						>
-							<IconStopCircle class="h-5 w-5" aria-hidden="true" />
-							<span>{m.stop_recording()}</span>
+							{#if isActive}
+								<IconStopCircle class="h-5 w-5" aria-hidden="true" />
+								<span>{m.stop_recording()}</span>
+							{:else}
+								<IconMicrophone class="h-5 w-5" aria-hidden="true" />
+								<span>{m.start_recording()}</span>
+							{/if}
 						</button>
 						{#if items.length}
 							<button
