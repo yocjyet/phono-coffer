@@ -31,20 +31,13 @@
 		type Recording,
 		type RecordingsMap,
 		type TestItem,
-		formatDuration
+		formatDuration,
+		summarizeReactionTimes
 	} from '$lib/minimal-pair';
 
 	type TestRunItem = TestItem & {
 		lastPlayedAt: number | null;
 		reactionTimeMs: number | null;
-	};
-
-	type ReactionStats = {
-		totalAnswered: number;
-		last: number | null;
-		overall: number | null;
-		correct: number | null;
-		incorrect: number | null;
 	};
 
 	type CompletedTest = {
@@ -59,27 +52,6 @@
 		exported: boolean;
 		labels: LabelDefinition[];
 	};
-
-	function isTimedItem(item: TestRunItem): item is TestRunItem & { reactionTimeMs: number } {
-		return typeof item.reactionTimeMs === 'number' && Number.isFinite(item.reactionTimeMs);
-	}
-
-	function summarizeReactions(items: TestRunItem[]): ReactionStats {
-		const answered = items.filter((item) => item.response !== null);
-		const timed = answered.filter(isTimedItem);
-		const average = (list: typeof timed) => {
-			if (!list.length) return null;
-			const total = list.reduce((sum, entry) => sum + entry.reactionTimeMs, 0);
-			return total / list.length;
-		};
-		return {
-			totalAnswered: answered.length,
-			last: timed.length ? timed[timed.length - 1].reactionTimeMs : null,
-			overall: average(timed),
-			correct: average(timed.filter((entry) => entry.correct)),
-			incorrect: average(timed.filter((entry) => entry.correct === false))
-		};
-	}
 
 	function formatReactionTime(ms: number | null) {
 		if (ms === null || Number.isNaN(ms)) {
@@ -291,7 +263,7 @@
 	);
 	let hasUnexportedTests = $derived(completedTests.some((test) => !test.exported));
 	let canExport = $derived(hasRecordings && completedTests.length > 0);
-	let reactionStats = $derived(summarizeReactions(testItems));
+	let reactionStats = $derived(summarizeReactionTimes(testItems));
 
 	function detectSupportedMimeType() {
 		if (
@@ -1061,7 +1033,7 @@
 					{@const sessionNames = session.labels.map(
 						(label) => label.value.trim() || fallbackLabelName(label.id)
 					)}
-					{@const sessionReaction = summarizeReactions(session.items)}
+				{@const sessionReaction = summarizeReactionTimes(session.items)}
 					<li
 						class="flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between"
 					>

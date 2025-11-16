@@ -21,6 +21,8 @@ export type TestItem = {
 	sample: Recording;
 	response: Label | null;
 	correct: boolean | null;
+	reactionTimeMs?: number | null;
+	lastPlayedAt?: number | null;
 };
 
 export type RecordingsMap = Record<Label, Recording[]>;
@@ -45,6 +47,35 @@ export function formatDuration(ms: number) {
 		.padStart(2, '0');
 	const seconds = (totalSeconds % 60).toString().padStart(2, '0');
 	return `${minutes}:${seconds}`;
+}
+
+export type ReactionStats = {
+	totalAnswered: number;
+	last: number | null;
+	overall: number | null;
+	correct: number | null;
+	incorrect: number | null;
+};
+
+function isTimed(item: TestItem): item is TestItem & { reactionTimeMs: number } {
+	return typeof item.reactionTimeMs === 'number' && Number.isFinite(item.reactionTimeMs);
+}
+
+export function summarizeReactionTimes(items: TestItem[]): ReactionStats {
+	const answered = items.filter((item) => item.response !== null);
+	const timed = answered.filter(isTimed);
+	const average = (list: typeof timed) => {
+		if (!list.length) return null;
+		const total = list.reduce((sum, entry) => sum + entry.reactionTimeMs, 0);
+		return total / list.length;
+	};
+	return {
+		totalAnswered: answered.length,
+		last: timed.length ? timed[timed.length - 1].reactionTimeMs : null,
+		overall: average(timed),
+		correct: average(timed.filter((entry) => entry.correct)),
+		incorrect: average(timed.filter((entry) => entry.correct === false))
+	};
 }
 
 export function clampRounds(value: number) {
@@ -100,6 +131,7 @@ export type ReportTestItem = {
 	recordingFilename: string | null;
 	response: Label | null;
 	correct: boolean | null;
+	reactionTimeMs: number | null;
 };
 
 export type LabelsSnapshot = LabelDefinition[];
@@ -118,11 +150,19 @@ export type ReportPayload = {
 		score: number;
 	};
 	recordings: ReportRecordingEntry[];
+	reaction: ReactionStats;
 	tests: ReportTestItem[];
 };
 
 function escapeMarkdownCell(value: string) {
 	return value.replace(/\|/g, '\\|').replace(/\r?\n|\r/g, ' ').trim() || '-';
+}
+
+function formatReactionValue(ms: number | null) {
+	if (ms === null || Number.isNaN(ms)) {
+		return '—';
+	}
+	return `${(ms / 1000).toFixed(2)}s`;
 }
 
 function createReportMarkdown(payload: ReportPayload) {
@@ -172,6 +212,16 @@ function createReportMarkdown(payload: ReportPayload) {
 	lines.push(`- 答錯題數：${incorrectCount}`);
 	lines.push(`- 正確率：${accuracy}%`, '');
 
+	lines.push('## 反應時間統計', '');
+	if (payload.reaction.totalAnswered) {
+		lines.push(`- 最近一次：${formatReactionValue(payload.reaction.last)}`);
+		lines.push(`- 平均（全部）：${formatReactionValue(payload.reaction.overall)}`);
+		lines.push(`- 平均（答對）：${formatReactionValue(payload.reaction.correct)}`);
+		lines.push(`- 平均（答錯）：${formatReactionValue(payload.reaction.incorrect)}`, '');
+	} else {
+		lines.push('尚無反應時間資料。', '');
+	}
+
 	lines.push('## 錄音列表', '');
 	if (payload.recordings.length) {
 		lines.push('| 標籤 | 詞語 | 錄音序號 | 檔名 |');
@@ -188,8 +238,8 @@ function createReportMarkdown(payload: ReportPayload) {
 
 	lines.push('## 測驗題目', '');
 	if (payload.tests.length) {
-		lines.push('| 題號 | 播放詞語 | 錄音檔 | 答案 | 判定 |');
-		lines.push('| --- | --- | --- | --- | --- |');
+		lines.push('| 題號 | 播放詞語 | 錄音檔 | 答案 | 判定 | 反應時間 |');
+		lines.push('| --- | --- | --- | --- | --- | --- |');
 		payload.tests.forEach((item) => {
 			const played = escapeMarkdownCell(labelMap[item.playedLabel]);
 			const recordingName = escapeMarkdownCell(item.recordingFilename ?? '（未附檔名）');
@@ -200,7 +250,7 @@ function createReportMarkdown(payload: ReportPayload) {
 			const result =
 				item.correct === null ? '未評分' : item.correct ? '正確' : '錯誤';
 			lines.push(
-				`| ${item.order} | ${played} | ${recordingName} | ${response} | ${result} |`
+				`| ${item.order} | ${played} | ${recordingName} | ${response} | ${result} | ${formatReactionValue(item.reactionTimeMs)} |`
 			);
 		});
 		lines.push('');
@@ -268,9 +318,15 @@ export async function createReportZip(params: {
 			recordingId: item.sample.id,
 			recordingFilename: linked?.filename ?? null,
 			response: item.response,
-			correct: item.correct
+			correct: item.correct,
+			reactionTimeMs:
+				typeof item.reactionTimeMs === 'number' && Number.isFinite(item.reactionTimeMs)
+					? item.reactionTimeMs
+					: null
 		};
 	});
+
+	const reaction = summarizeReactionTimes(testItems);
 
 	const payload: ReportPayload = {
 		generatedAt: new Date().toISOString(),
@@ -289,6 +345,7 @@ export async function createReportZip(params: {
 			score
 		},
 		recordings: recordingEntries,
+		reaction,
 		tests
 	};
 
