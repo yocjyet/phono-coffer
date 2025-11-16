@@ -437,14 +437,16 @@
 				目前將進行 {normalizedRounds * 2} 題。 若錄音不足，系統會隨機重複樣本以保持 A/B 題數平衡。
 			</p>
 		</div>
-		<label class="option-line">
-			<input type="checkbox" bind:checked={autoPlayNext} />
-			<span>答題後自動播放下一題</span>
-		</label>
+		<div class="options-row">
+			<label class="option-line">
+				<input type="checkbox" bind:checked={autoPlayNext} />
+				<span>答題後自動播放下一題</span>
+			</label>
+		</div>
 		{#if testError}
 			<p class="error">{testError}</p>
 		{/if}
-		<button onclick={startTest} disabled={!readyForTest}>開始測驗</button>
+		<button class="primary" onclick={startTest} disabled={!readyForTest}>開始測驗</button>
 
 		{#if testActive}
 			<div class="test-panel">
@@ -626,6 +628,11 @@
 		cursor: not-allowed;
 	}
 
+	button.primary {
+		padding: 0.9rem 1.5rem;
+		font-size: 1.05rem;
+	}
+
 	.secondary {
 		background: #555;
 	}
@@ -648,12 +655,24 @@
 		max-width: 120px;
 	}
 
+	.options-row {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 1rem;
+		margin: 0.75rem 0 0.5rem;
+	}
+
 	.option-line {
 		display: inline-flex;
 		align-items: center;
 		gap: 0.5rem;
 		font-weight: 500;
-		margin-bottom: 0.5rem;
+	}
+
+	.option-line input[type='checkbox'] {
+		width: 1.25rem;
+		height: 1.25rem;
+		accent-color: #0f62fe;
 	}
 
 	ul {
