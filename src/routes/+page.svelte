@@ -281,6 +281,17 @@
 		triggerChoiceTransition();
 	}
 
+	function confirmReset() {
+		if (!browser) {
+			resetAll();
+			return;
+		}
+		const confirmed = window.confirm('確定要清除所有錄音與測驗紀錄？此動作無法復原。');
+		if (confirmed) {
+			resetAll();
+		}
+	}
+
 	function resetAll() {
 		recordings = { A: [], B: [] };
 		recordError = '';
@@ -512,7 +523,7 @@
 			{/each}
 		</div>
 		<button
-			onclick={resetAll}
+			onclick={() => confirmReset()}
 			class="rounded-lg bg-gray-800 px-4 py-2 font-semibold text-white hover:bg-gray-900"
 		>
 			清除錄音
