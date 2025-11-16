@@ -8,6 +8,7 @@ export type Recording = {
 	url: string;
 	blob: Blob;
 	index: number;
+	mimeType: string;
 };
 
 export type TestItem = {
@@ -114,6 +115,26 @@ export type ReportPayload = {
 	tests: ReportTestItem[];
 };
 
+function extensionFromMimeType(mimeType: string) {
+	const base = mimeType.split(';')[0]?.trim().toLowerCase();
+	switch (base) {
+		case 'audio/mp4':
+		case 'audio/mp4a':
+			return 'm4a';
+		case 'audio/aac':
+			return 'aac';
+		case 'audio/mpeg':
+			return 'mp3';
+		case 'audio/ogg':
+			return 'ogg';
+		case 'audio/wav':
+			return 'wav';
+		case 'audio/webm':
+		default:
+			return 'webm';
+	}
+}
+
 export async function createReportZip(params: {
 	recordings: RecordingsMap;
 	testItems: TestItem[];
@@ -128,7 +149,8 @@ export async function createReportZip(params: {
 	const recordingsFolder = zip.folder('recordings');
 	const flattened = [...recordings.A, ...recordings.B];
 	const recordingEntries: ReportRecordingEntry[] = flattened.map((rec) => {
-		const filename = `${rec.label}-${rec.index.toString().padStart(2, '0')}.webm`;
+		const extension = extensionFromMimeType(rec.mimeType);
+		const filename = `${rec.label}-${rec.index.toString().padStart(2, '0')}.${extension}`;
 		recordingsFolder?.file(filename, rec.blob);
 		return {
 			id: rec.id,
