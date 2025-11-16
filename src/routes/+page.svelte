@@ -467,13 +467,15 @@
 		{#if testError}
 			<p class="font-semibold text-red-600">{testError}</p>
 		{/if}
-		<button
-			onclick={startTest}
-			disabled={!readyForTest}
-			class="w-full rounded-xl bg-blue-600 px-4 py-3 text-lg font-semibold text-white enabled:hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-		>
-			開始測驗
-		</button>
+		{#if !testActive}
+			<button
+				onclick={startTest}
+				disabled={!readyForTest}
+				class="w-full rounded-xl bg-blue-600 px-4 py-3 text-lg font-semibold text-white enabled:hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+			>
+				開始測驗
+			</button>
+		{/if}
 
 		{#if testActive}
 			<div class="space-y-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
