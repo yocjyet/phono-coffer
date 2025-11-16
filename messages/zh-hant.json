@@ -48,5 +48,15 @@
 	"error_min_recordings": "每個詞語至少需要 {min} 筆錄音才可測驗。",
 	"export_success": "報告已下載。",
 	"export_failure": "匯出失敗：{message}",
-	"session_meta": "{timestamp} · {score} / {total}（{accuracy}%）"
+	"session_meta": "{timestamp} · {score} / {total}（{accuracy}%）",
+	"reaction_section_title": "反應時間",
+	"reaction_stat_last": "最近答覆",
+	"reaction_stat_overall": "平均（全部）",
+	"reaction_stat_correct": "平均（答對）",
+	"reaction_stat_incorrect": "平均（答錯）",
+	"reaction_value_label": "反應",
+	"reaction_avg_label": "平均反應",
+	"mistake_crosstab_title": "錯誤交叉表",
+	"mistake_crosstab_hint": "列代表實際提示，欄代表作答。對角線為正確，其餘顯示誤判。",
+	"mistake_crosstab_header": "實際 \\\\ 預測"
 }

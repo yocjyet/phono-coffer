@@ -48,5 +48,15 @@
 	"error_min_recordings": "每个词语至少需要 {min} 条录音才可测验。",
 	"export_success": "报告已下载。",
 	"export_failure": "导出失败：{message}",
-	"session_meta": "{timestamp} · {score} / {total}（{accuracy}%）"
+	"session_meta": "{timestamp} · {score} / {total}（{accuracy}%）",
+	"reaction_section_title": "反应时间",
+	"reaction_stat_last": "最近作答",
+	"reaction_stat_overall": "平均（全部）",
+	"reaction_stat_correct": "平均（答对）",
+	"reaction_stat_incorrect": "平均（答错）",
+	"reaction_value_label": "反应",
+	"reaction_avg_label": "平均反应",
+	"mistake_crosstab_title": "错误交叉表",
+	"mistake_crosstab_hint": "行表示实际提示，列表示你的选择。对角线为正确，其余数字显示误判。",
+	"mistake_crosstab_header": "实际 \\\\ 预测"
 }

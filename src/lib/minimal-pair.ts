@@ -65,6 +65,237 @@ export type ConfusionMatrix = {
 	counts: Record<Label, Record<Label | typeof UNANSWERED_GUESS, number>>;
 };
 
+type ReportStrings = {
+	valueSeparator: string;
+	title: string;
+	generatedAtLabel: string;
+	wordsTitle: string;
+	wordsHeaders: { label: string; word: string; recordings: string };
+	wordsEmpty: string;
+	settingsTitle: string;
+	settingsRecommended: string;
+	settingsRequested: string;
+	settingsExecuted: string;
+	summaryTitle: string;
+	summaryQuestions: string;
+	summaryCorrect: string;
+	summaryIncorrect: string;
+	summaryAccuracy: string;
+	reactionTitle: string;
+	reactionLast: string;
+	reactionOverall: string;
+	reactionCorrect: string;
+	reactionIncorrect: string;
+	reactionEmpty: string;
+	confusionTitle: string;
+	confusionHeader: string;
+	confusionEmpty: string;
+	confusionUnanswered: string;
+	recordingsTitle: string;
+	recordingsHeaders: { label: string; word: string; index: string; filename: string };
+	recordingsEmpty: string;
+	testsTitle: string;
+	testsHeaders: { order: string; played: string; recording: string; answer: string; result: string; reaction: string };
+	testsEmpty: string;
+	recordingFilenameMissing: string;
+	unanswered: string;
+	resultCorrect: string;
+	resultIncorrect: string;
+	resultPending: string;
+};
+
+type ReportLocale = 'zh-hant' | 'en' | 'zh-hans' | 'ja';
+
+const REPORT_STRINGS: Record<ReportLocale, ReportStrings> = {
+	'en': {
+		valueSeparator: ': ',
+		title: 'Minimal Pair Test Report',
+		generatedAtLabel: 'Generated at',
+		wordsTitle: 'Word list',
+		wordsHeaders: { label: 'Label', word: 'Word', recordings: 'Recordings' },
+		wordsEmpty: 'No words configured yet.',
+		settingsTitle: 'Test settings',
+		settingsRecommended: 'Recommended rounds per label',
+		settingsRequested: 'Requested rounds per label',
+		settingsExecuted: 'Executed rounds per label',
+		summaryTitle: 'Test summary',
+		summaryQuestions: 'Total questions',
+		summaryCorrect: 'Correct answers',
+		summaryIncorrect: 'Incorrect answers',
+		summaryAccuracy: 'Accuracy',
+		reactionTitle: 'Reaction time stats',
+		reactionLast: 'Last response',
+		reactionOverall: 'Average (overall)',
+		reactionCorrect: 'Average (correct)',
+		reactionIncorrect: 'Average (incorrect)',
+		reactionEmpty: 'No reaction time data yet.',
+		confusionTitle: 'Error cross-tab',
+		confusionHeader: 'Actual \\\\ Predicted',
+		confusionEmpty: 'No confusion data yet.',
+		confusionUnanswered: 'Unanswered',
+		recordingsTitle: 'Recording list',
+		recordingsHeaders: { label: 'Label', word: 'Word', index: 'Recording #', filename: 'Filename' },
+		recordingsEmpty: 'No recordings available.',
+		testsTitle: 'Test questions',
+		testsHeaders: {
+			order: 'Question #',
+			played: 'Prompted word',
+			recording: 'Recording file',
+			answer: 'Answer',
+			result: 'Result',
+			reaction: 'Reaction time'
+		},
+		testsEmpty: 'No tests recorded yet.',
+		recordingFilenameMissing: '(no filename)',
+		unanswered: 'Unanswered',
+		resultCorrect: 'Correct',
+		resultIncorrect: 'Incorrect',
+		resultPending: 'Not graded'
+	},
+	'zh-hant': {
+		valueSeparator: '：',
+		title: '最小對測驗報告',
+		generatedAtLabel: '產生時間',
+		wordsTitle: '詞語列表',
+		wordsHeaders: { label: '標籤', word: '詞語', recordings: '錄音數' },
+		wordsEmpty: '尚未設定詞語。',
+		settingsTitle: '測驗設定',
+		settingsRecommended: '建議輪次（每詞）',
+		settingsRequested: '要求輪次（每詞）',
+		settingsExecuted: '實際輪次（每詞）',
+		summaryTitle: '測驗總結',
+		summaryQuestions: '題目總數',
+		summaryCorrect: '答對題數',
+		summaryIncorrect: '答錯題數',
+		summaryAccuracy: '正確率',
+		reactionTitle: '反應時間統計',
+		reactionLast: '最近一次',
+		reactionOverall: '平均（全部）',
+		reactionCorrect: '平均（答對）',
+		reactionIncorrect: '平均（答錯）',
+		reactionEmpty: '尚無反應時間資料。',
+		confusionTitle: '錯誤交叉表',
+		confusionHeader: '實際 \\\\ 預測',
+		confusionEmpty: '尚無交叉表資料。',
+		confusionUnanswered: '未作答',
+		recordingsTitle: '錄音列表',
+		recordingsHeaders: { label: '標籤', word: '詞語', index: '錄音序號', filename: '檔名' },
+		recordingsEmpty: '尚無錄音可列出。',
+		testsTitle: '測驗題目',
+		testsHeaders: {
+			order: '題號',
+			played: '播放詞語',
+			recording: '錄音檔',
+			answer: '答案',
+			result: '判定',
+			reaction: '反應時間'
+		},
+		testsEmpty: '尚未進行測驗。',
+		recordingFilenameMissing: '（未附檔名）',
+		unanswered: '未作答',
+		resultCorrect: '正確',
+		resultIncorrect: '錯誤',
+		resultPending: '未評分'
+	},
+	'zh-hans': {
+		valueSeparator: '：',
+		title: '最小对测验报告',
+		generatedAtLabel: '生成时间',
+		wordsTitle: '词语列表',
+		wordsHeaders: { label: '标签', word: '词语', recordings: '录音数' },
+		wordsEmpty: '尚未设置词语。',
+		settingsTitle: '测验设置',
+		settingsRecommended: '建议轮次（每词）',
+		settingsRequested: '要求轮次（每词）',
+		settingsExecuted: '实际轮次（每词）',
+		summaryTitle: '测验总结',
+		summaryQuestions: '题目总数',
+		summaryCorrect: '答对题数',
+		summaryIncorrect: '答错题数',
+		summaryAccuracy: '正确率',
+		reactionTitle: '反应时间统计',
+		reactionLast: '最近一次',
+		reactionOverall: '平均（全部）',
+		reactionCorrect: '平均（答对）',
+		reactionIncorrect: '平均（答错）',
+		reactionEmpty: '暂无反应时间数据。',
+		confusionTitle: '错误交叉表',
+		confusionHeader: '实际 \\\\ 预测',
+		confusionEmpty: '暂无交叉表数据。',
+		confusionUnanswered: '未作答',
+		recordingsTitle: '录音列表',
+		recordingsHeaders: { label: '标签', word: '词语', index: '录音序号', filename: '文件名' },
+		recordingsEmpty: '暂无录音可列出。',
+		testsTitle: '测验题目',
+		testsHeaders: {
+			order: '题号',
+			played: '播放词语',
+			recording: '录音文件',
+			answer: '答案',
+			result: '判定',
+			reaction: '反应时间'
+		},
+		testsEmpty: '尚未进行测验。',
+		recordingFilenameMissing: '（无文件名）',
+		unanswered: '未作答',
+		resultCorrect: '正确',
+		resultIncorrect: '错误',
+		resultPending: '未评分'
+	},
+	ja: {
+		valueSeparator: '：',
+		title: '最小対テストレポート',
+		generatedAtLabel: '生成日時',
+		wordsTitle: '語彙リスト',
+		wordsHeaders: { label: 'ラベル', word: '語', recordings: '録音数' },
+		wordsEmpty: '語彙がまだ設定されていません。',
+		settingsTitle: 'テスト設定',
+		settingsRecommended: '推奨ラウンド（語ごと）',
+		settingsRequested: '指定ラウンド（語ごと）',
+		settingsExecuted: '実行ラウンド（語ごと）',
+		summaryTitle: 'テストサマリー',
+		summaryQuestions: '総問題数',
+		summaryCorrect: '正答数',
+		summaryIncorrect: '誤答数',
+		summaryAccuracy: '正答率',
+		reactionTitle: '反応時間統計',
+		reactionLast: '直近の回答',
+		reactionOverall: '平均（全体）',
+		reactionCorrect: '平均（正答）',
+		reactionIncorrect: '平均（誤答）',
+		reactionEmpty: '反応時間データがありません。',
+		confusionTitle: '誤りクロステーブル',
+		confusionHeader: '実際 \\\\ 予測',
+		confusionEmpty: 'クロステーブルのデータがありません。',
+		confusionUnanswered: '無回答',
+		recordingsTitle: '録音一覧',
+		recordingsHeaders: { label: 'ラベル', word: '語', index: '録音番号', filename: 'ファイル名' },
+		recordingsEmpty: '録音データがありません。',
+		testsTitle: '出題一覧',
+		testsHeaders: {
+			order: '問題番号',
+			played: '提示語',
+			recording: '録音ファイル',
+			answer: '回答',
+			result: '判定',
+			reaction: '反応時間'
+		},
+		testsEmpty: 'テストはまだ行われていません。',
+		recordingFilenameMissing: '（ファイル名なし）',
+		unanswered: '無回答',
+		resultCorrect: '正解',
+		resultIncorrect: '不正解',
+		resultPending: '未判定'
+	}
+};
+
+function getReportStrings(locale?: string): ReportStrings {
+	if (locale && locale in REPORT_STRINGS) {
+		return REPORT_STRINGS[locale as ReportLocale];
+	}
+	return REPORT_STRINGS.en;
+}
+
 function isTimed(item: TestItem): item is TestItem & { reactionTimeMs: number } {
 	return typeof item.reactionTimeMs === 'number' && Number.isFinite(item.reactionTimeMs);
 }
@@ -193,6 +424,7 @@ export type LabelsSnapshot = LabelDefinition[];
 
 export type ReportPayload = {
 	generatedAt: string;
+	locale: string;
 	labels: LabelsSnapshot;
 	settings: {
 		recommendedRoundsPerLabel: number;
@@ -222,6 +454,8 @@ function formatReactionValue(ms: number | null) {
 }
 
 function createReportMarkdown(payload: ReportPayload) {
+	const strings = getReportStrings(payload.locale);
+	const valueLine = (label: string, value: string | number) => `${label}${strings.valueSeparator}${value}`;
 	const fallbackLabels =
 		payload.labels.length > 0
 			? payload.labels
@@ -241,12 +475,12 @@ function createReportMarkdown(payload: ReportPayload) {
 	const incorrectCount = Math.max(payload.totals.questions - payload.totals.score, 0);
 	const lines: string[] = [];
 
-	lines.push('# 最小對測驗報告', '');
-	lines.push(`- 產生時間：${payload.generatedAt}`, '');
+	lines.push(`# ${strings.title}`, '');
+	lines.push(`- ${valueLine(strings.generatedAtLabel, payload.generatedAt)}`, '');
 
-	lines.push('## 詞語列表', '');
+	lines.push(`## ${strings.wordsTitle}`, '');
 	if (Object.keys(labelMap).length) {
-		lines.push('| 標籤 | 詞語 | 錄音數 |');
+		lines.push(`| ${strings.wordsHeaders.label} | ${strings.wordsHeaders.word} | ${strings.wordsHeaders.recordings} |`);
 		lines.push('| --- | --- | --- |');
 		Object.keys(labelMap).forEach((key) => {
 			const count = payload.totals.perLabel[key] ?? 0;
@@ -254,36 +488,36 @@ function createReportMarkdown(payload: ReportPayload) {
 		});
 		lines.push('');
 	} else {
-		lines.push('尚未設定詞語。', '');
+		lines.push(strings.wordsEmpty, '');
 	}
 
-	lines.push('## 測驗設定', '');
-	lines.push(`- 建議輪次（每詞）：${payload.settings.recommendedRoundsPerLabel}`);
-	lines.push(`- 要求輪次（每詞）：${payload.settings.requestedRoundsPerLabel}`);
-	lines.push(`- 實際輪次（每詞）：${payload.settings.executedRoundsPerLabel}`, '');
+	lines.push(`## ${strings.settingsTitle}`, '');
+	lines.push(`- ${valueLine(strings.settingsRecommended, payload.settings.recommendedRoundsPerLabel)}`);
+	lines.push(`- ${valueLine(strings.settingsRequested, payload.settings.requestedRoundsPerLabel)}`);
+	lines.push(`- ${valueLine(strings.settingsExecuted, payload.settings.executedRoundsPerLabel)}`, '');
 
-	lines.push('## 測驗總結', '');
-	lines.push(`- 題目總數：${payload.totals.questions}`);
-	lines.push(`- 答對題數：${payload.totals.score}`);
-	lines.push(`- 答錯題數：${incorrectCount}`);
-	lines.push(`- 正確率：${accuracy}%`, '');
+	lines.push(`## ${strings.summaryTitle}`, '');
+	lines.push(`- ${valueLine(strings.summaryQuestions, payload.totals.questions)}`);
+	lines.push(`- ${valueLine(strings.summaryCorrect, payload.totals.score)}`);
+	lines.push(`- ${valueLine(strings.summaryIncorrect, incorrectCount)}`);
+	lines.push(`- ${valueLine(strings.summaryAccuracy, `${accuracy}%`)}`, '');
 
-	lines.push('## 反應時間統計', '');
+	lines.push(`## ${strings.reactionTitle}`, '');
 	if (payload.reaction.totalAnswered) {
-		lines.push(`- 最近一次：${formatReactionValue(payload.reaction.last)}`);
-		lines.push(`- 平均（全部）：${formatReactionValue(payload.reaction.overall)}`);
-		lines.push(`- 平均（答對）：${formatReactionValue(payload.reaction.correct)}`);
-		lines.push(`- 平均（答錯）：${formatReactionValue(payload.reaction.incorrect)}`, '');
+		lines.push(`- ${valueLine(strings.reactionLast, formatReactionValue(payload.reaction.last))}`);
+		lines.push(`- ${valueLine(strings.reactionOverall, formatReactionValue(payload.reaction.overall))}`);
+		lines.push(`- ${valueLine(strings.reactionCorrect, formatReactionValue(payload.reaction.correct))}`);
+		lines.push(`- ${valueLine(strings.reactionIncorrect, formatReactionValue(payload.reaction.incorrect))}`, '');
 	} else {
-		lines.push('尚無反應時間資料。', '');
+		lines.push(strings.reactionEmpty, '');
 	}
 
-	lines.push('## 錯誤交叉表', '');
+	lines.push(`## ${strings.confusionTitle}`, '');
 	if (payload.confusion.actual.length && payload.confusion.guessed.length) {
 		const headerCells = payload.confusion.guessed.map((guess) =>
-			guess === UNANSWERED_GUESS ? '未作答' : escapeMarkdownCell(labelMap[guess] ?? guess)
+			guess === UNANSWERED_GUESS ? strings.confusionUnanswered : escapeMarkdownCell(labelMap[guess] ?? guess)
 		);
-		lines.push(`| 實際\\預測 | ${headerCells.join(' | ')} |`);
+		lines.push(`| ${strings.confusionHeader} | ${headerCells.join(' | ')} |`);
 		lines.push(`| --- | ${headerCells.map(() => '---').join(' | ')} |`);
 		payload.confusion.actual.forEach((actualLabel) => {
 			const row = payload.confusion.guessed.map((guess) => {
@@ -295,12 +529,14 @@ function createReportMarkdown(payload: ReportPayload) {
 		});
 		lines.push('');
 	} else {
-		lines.push('尚無交叉表資料。', '');
+		lines.push(strings.confusionEmpty, '');
 	}
 
-	lines.push('## 錄音列表', '');
+	lines.push(`## ${strings.recordingsTitle}`, '');
 	if (payload.recordings.length) {
-		lines.push('| 標籤 | 詞語 | 錄音序號 | 檔名 |');
+		lines.push(
+			`| ${strings.recordingsHeaders.label} | ${strings.recordingsHeaders.word} | ${strings.recordingsHeaders.index} | ${strings.recordingsHeaders.filename} |`
+		);
 		lines.push('| --- | --- | --- | --- |');
 		payload.recordings.forEach((rec) => {
 			lines.push(
@@ -309,29 +545,35 @@ function createReportMarkdown(payload: ReportPayload) {
 		});
 		lines.push('');
 	} else {
-		lines.push('尚無錄音可列出。', '');
+		lines.push(strings.recordingsEmpty, '');
 	}
 
-	lines.push('## 測驗題目', '');
+	lines.push(`## ${strings.testsTitle}`, '');
 	if (payload.tests.length) {
-		lines.push('| 題號 | 播放詞語 | 錄音檔 | 答案 | 判定 | 反應時間 |');
+		lines.push(
+			`| ${strings.testsHeaders.order} | ${strings.testsHeaders.played} | ${strings.testsHeaders.recording} | ${strings.testsHeaders.answer} | ${strings.testsHeaders.result} | ${strings.testsHeaders.reaction} |`
+		);
 		lines.push('| --- | --- | --- | --- | --- | --- |');
 		payload.tests.forEach((item) => {
 			const played = escapeMarkdownCell(labelMap[item.playedLabel]);
-			const recordingName = escapeMarkdownCell(item.recordingFilename ?? '（未附檔名）');
+			const recordingName = escapeMarkdownCell(item.recordingFilename ?? strings.recordingFilenameMissing);
 			const response =
 				item.response === null
-					? '未作答'
+					? strings.unanswered
 					: escapeMarkdownCell(labelMap[item.response]);
 			const result =
-				item.correct === null ? '未評分' : item.correct ? '正確' : '錯誤';
+				item.correct === null
+					? strings.resultPending
+					: item.correct
+						? strings.resultCorrect
+						: strings.resultIncorrect;
 			lines.push(
 				`| ${item.order} | ${played} | ${recordingName} | ${response} | ${result} | ${formatReactionValue(item.reactionTimeMs)} |`
 			);
 		});
 		lines.push('');
 	} else {
-		lines.push('尚未進行測驗。', '');
+		lines.push(strings.testsEmpty, '');
 	}
 
 	return `${lines.join('\n').trim()}\n`;
@@ -364,9 +606,17 @@ export async function createReportZip(params: {
 	requestedRoundsPerLabel: number;
 	executedRoundsPerLabel: number;
 	score: number;
+	locale?: string;
 }) {
-	const { recordings, testItems, labels, requestedRoundsPerLabel, executedRoundsPerLabel, score } =
-		params;
+	const {
+		recordings,
+		testItems,
+		labels,
+		requestedRoundsPerLabel,
+		executedRoundsPerLabel,
+		score,
+		locale
+	} = params;
 	const zip = new JSZip();
 	const recordingsFolder = zip.folder('recordings');
 	const labelOrder = [
@@ -405,8 +655,11 @@ export async function createReportZip(params: {
 	const reaction = summarizeReactionTimes(testItems);
 	const confusion = buildConfusionMatrix(testItems, labels.map((label) => label.id));
 
+	const resolvedLocale = locale ?? 'en';
+
 	const payload: ReportPayload = {
 		generatedAt: new Date().toISOString(),
+		locale: resolvedLocale,
 		labels,
 		settings: {
 			recommendedRoundsPerLabel: DEFAULT_ROUNDS_PER_LABEL,

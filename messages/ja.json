@@ -48,5 +48,15 @@
 	"error_min_recordings": "各単語 {min} 件以上の録音がないとテストを開始できません。",
 	"export_success": "レポートをダウンロードしました。",
 	"export_failure": "書き出しに失敗しました: {message}",
-	"session_meta": "{timestamp} · {score} / {total}（{accuracy}%）"
+	"session_meta": "{timestamp} · {score} / {total}（{accuracy}%）",
+	"reaction_section_title": "反応時間",
+	"reaction_stat_last": "直近の回答",
+	"reaction_stat_overall": "平均（全体）",
+	"reaction_stat_correct": "平均（正解）",
+	"reaction_stat_incorrect": "平均（不正解）",
+	"reaction_value_label": "反応",
+	"reaction_avg_label": "反応平均",
+	"mistake_crosstab_title": "誤りクロステーブル",
+	"mistake_crosstab_hint": "行が提示語、列が回答です。対角線は正解、それ以外は誤答傾向を示します。",
+	"mistake_crosstab_header": "実際 \\\\ 予測"
 }

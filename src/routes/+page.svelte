@@ -53,6 +53,7 @@
 		createdAt: string;
 		exported: boolean;
 		labels: LabelDefinition[];
+		locale: Locale;
 	};
 
 	function formatReactionTime(ms: number | null) {
@@ -603,7 +604,8 @@
 			accuracy: total ? Math.round((score / total) * 100) : 0,
 			createdAt: new Date().toISOString(),
 			exported: false,
-			labels: cloneLabels(currentLabelsSnapshot)
+			labels: cloneLabels(currentLabelsSnapshot),
+			locale: activeLocale
 		};
 		completedTests = [...completedTests, snapshot];
 		currentSessionId = null;
@@ -639,7 +641,8 @@
 				labels: target.labels,
 				requestedRoundsPerLabel: target.requestedRoundsPerLabel,
 				executedRoundsPerLabel: target.executedRoundsPerLabel,
-				score: target.score
+				score: target.score,
+				locale: target.locale ?? activeLocale
 			});
 			const exportTimestamp = new Date(target.createdAt).getTime();
 			const filename = createReportFilename(target.labels, exportTimestamp);
@@ -950,28 +953,36 @@
 
 		{#if reactionStats.totalAnswered}
 			<div class="space-y-3 rounded-xl border border-blue-100 bg-blue-50/70 p-4">
-				<p class="text-base font-semibold text-gray-900">Reaction times</p>
+				<p class="text-base font-semibold text-gray-900">{m.reaction_section_title()}</p>
 				<div class="grid gap-3 sm:grid-cols-2">
 					<div class="rounded-lg bg-white/60 px-3 py-2">
-						<p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Last answer</p>
+						<p class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+							{m.reaction_stat_last()}
+						</p>
 						<p class="text-lg font-semibold text-gray-900">
 							{formatReactionTime(reactionStats.last)}
 						</p>
 					</div>
 					<div class="rounded-lg bg-white/60 px-3 py-2">
-						<p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Avg overall</p>
+						<p class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+							{m.reaction_stat_overall()}
+						</p>
 						<p class="text-lg font-semibold text-gray-900">
 							{formatReactionTime(reactionStats.overall)}
 						</p>
 					</div>
 					<div class="rounded-lg bg-white/60 px-3 py-2">
-						<p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Avg correct</p>
+						<p class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+							{m.reaction_stat_correct()}
+						</p>
 						<p class="text-lg font-semibold text-gray-900">
 							{formatReactionTime(reactionStats.correct)}
 						</p>
 					</div>
 					<div class="rounded-lg bg-white/60 px-3 py-2">
-						<p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Avg incorrect</p>
+						<p class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+							{m.reaction_stat_incorrect()}
+						</p>
 						<p class="text-lg font-semibold text-gray-900">
 							{formatReactionTime(reactionStats.incorrect)}
 						</p>
@@ -1006,7 +1017,7 @@
 									)}
 								</span>
 								<span class="text-xs text-gray-500">
-									Reaction: {formatReactionTime(item.reactionTimeMs)}
+									{m.reaction_value_label()}: {formatReactionTime(item.reactionTimeMs)}
 								</span>
 							</div>
 							<span class={item.correct ? 'text-green-600' : 'text-red-600'}>
@@ -1017,17 +1028,16 @@
 				</ol>
 				{#if confusionMatrix.actual.length && confusionMatrix.guessed.length}
 					<div class="space-y-2 rounded-xl border border-purple-100 bg-purple-50/70 p-3">
-						<p class="text-sm font-semibold text-gray-900">Mistake cross-tab</p>
+						<p class="text-sm font-semibold text-gray-900">{m.mistake_crosstab_title()}</p>
 						<p class="text-xs text-gray-600">
-							Rows = actual prompt, columns = your guess. Diagonal cells show correct picks;
-							off-diagonal counts highlight false positives/negatives.
+							{m.mistake_crosstab_hint()}
 						</p>
 						<div class="overflow-auto">
 							<table class="min-w-full border-collapse text-xs">
 								<thead>
 									<tr>
 										<th class="bg-white px-3 py-2 text-left font-semibold text-gray-600">
-											Actual \\ Predicted
+											{m.mistake_crosstab_header()}
 										</th>
 										{#each confusionMatrix.guessed as guess}
 											<th class="bg-gray-50 px-3 py-2 text-center font-semibold text-gray-800">
@@ -1119,7 +1129,9 @@
 								)}
 							</p>
 							<p class="text-xs text-gray-600">
-								Reaction avg: {formatReactionTime(sessionReaction.overall)} · ✔ {formatReactionTime(sessionReaction.correct)} · ✘ {formatReactionTime(sessionReaction.incorrect)}
+								{m.reaction_avg_label()}: {formatReactionTime(sessionReaction.overall)} · ✔
+								{formatReactionTime(sessionReaction.correct)} · ✘
+								{formatReactionTime(sessionReaction.incorrect)}
 							</p>
 						</div>
 						<div class="flex items-center gap-2">

@@ -48,5 +48,15 @@
 	"error_min_recordings": "Each word needs at least {min} recordings to start the test.",
 	"export_success": "Report downloaded.",
 	"export_failure": "Export failed: {message}",
-	"session_meta": "{timestamp} · {score} / {total} ({accuracy}%)"
+	"session_meta": "{timestamp} · {score} / {total} ({accuracy}%)",
+	"reaction_section_title": "Reaction times",
+	"reaction_stat_last": "Last answer",
+	"reaction_stat_overall": "Avg overall",
+	"reaction_stat_correct": "Avg correct",
+	"reaction_stat_incorrect": "Avg incorrect",
+	"reaction_value_label": "Reaction",
+	"reaction_avg_label": "Reaction avg",
+	"mistake_crosstab_title": "Mistake cross-tab",
+	"mistake_crosstab_hint": "Rows = actual prompt, columns = your guess. Diagonals show correct picks; other counts highlight mistakes.",
+	"mistake_crosstab_header": "Actual \\\\ Predicted"
 }
