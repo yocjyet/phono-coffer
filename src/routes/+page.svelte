@@ -20,6 +20,19 @@
 		formatDuration
 	} from '$lib/minimal-pair';
 
+	type CompletedTest = {
+		id: string;
+		items: TestItem[];
+		score: number;
+		totalRounds: number;
+		executedRoundsPerLabel: number;
+		requestedRoundsPerLabel: number;
+		accuracy: number;
+		createdAt: string;
+		exported: boolean;
+		pair: { A: string; B: string };
+	};
+
 	const LABEL_KEYS: Label[] = ['A', 'B'];
 
 	let pairA = $state('');
@@ -42,6 +55,9 @@
 	let score = $state(0);
 	let testActive = $state(false);
 	let testComplete = $state(false);
+	let currentSessionId = $state<string | null>(null);
+	let completedTests = $state<CompletedTest[]>([]);
+	let currentPairSnapshot = $state<{ A: string; B: string } | null>(null);
 	let currentAudio: HTMLAudioElement | null = null;
 	let roundsPerLabel = $state(DEFAULT_ROUNDS_PER_LABEL);
 	let lastUsedRoundsPerLabel = $state(DEFAULT_ROUNDS_PER_LABEL);
@@ -69,7 +85,8 @@
 	);
 	let timerDisplay = $derived(isRecording ? formatDuration(recordingTimer) : '00:00');
 	let hasRecordings = $derived(recordings.A.length + recordings.B.length > 0);
-	let canExport = $derived(hasRecordings && testItems.length > 0);
+	let hasUnexportedTests = $derived(completedTests.some((test) => !test.exported));
+	let canExport = $derived(hasRecordings && completedTests.length > 0);
 
 	async function ensureRecorder() {
 		if (!browser) {
@@ -196,10 +213,19 @@
 			testError = `每個詞語至少需要 ${MIN_RECORDINGS_FOR_TEST} 筆錄音才可測驗。`;
 			return;
 		}
+		if (browser && hasUnexportedTests) {
+			const proceed = window.confirm(
+				'先前已有尚未匯出的測驗結果，開始新的測驗將覆蓋目前答題進度。要繼續嗎？'
+			);
+			if (!proceed) {
+				return;
+			}
+		}
 		hideChoices = false;
 		clearHideChoicesTimer();
 		const perLabel = normalizedRounds;
 		lastUsedRoundsPerLabel = perLabel;
+		currentPairSnapshot = { A: labelA, B: labelB };
 
 		const selections = [
 			...buildSampleSet(recordings, 'A', perLabel),
@@ -218,6 +244,7 @@
 		score = 0;
 		testActive = queue.length > 0;
 		testComplete = false;
+		currentSessionId = queue.length ? createId() : null;
 	}
 
 	function playCurrentSample() {
@@ -244,6 +271,7 @@
 		if (currentTestIndex >= testItems.length - 1) {
 			testActive = false;
 			testComplete = true;
+			archiveCompletedTestSession();
 		} else {
 			currentTestIndex += 1;
 			if (autoPlayNext) {
@@ -262,6 +290,7 @@
 		score = 0;
 		testActive = false;
 		testComplete = false;
+		currentSessionId = null;
 		isRecording = null;
 		recordingTarget = null;
 		audioChunks = [];
@@ -274,6 +303,8 @@
 		exportMessage = '';
 		hideChoices = false;
 		clearHideChoicesTimer();
+		completedTests = [];
+		currentPairSnapshot = null;
 	}
 
 	onDestroy(() => {
@@ -300,25 +331,64 @@
 		}
 	}
 
-	async function exportReport() {
+	function archiveCompletedTestSession() {
+		if (!currentSessionId || !testItems.length || !currentPairSnapshot) return;
+		const alreadySaved = completedTests.some((session) => session.id === currentSessionId);
+		if (alreadySaved) return;
+		const total = testItems.length;
+		const executedRoundsPerLabel = total / 2;
+		const snapshot: CompletedTest = {
+			id: currentSessionId,
+			items: testItems.map((item) => ({ ...item })),
+			score,
+			totalRounds: total,
+			executedRoundsPerLabel,
+			requestedRoundsPerLabel: lastUsedRoundsPerLabel,
+			accuracy: total ? Math.round((score / total) * 100) : 0,
+			createdAt: new Date().toISOString(),
+			exported: false,
+			pair: currentPairSnapshot
+		};
+		completedTests = [...completedTests, snapshot];
+		currentSessionId = null;
+		currentPairSnapshot = null;
+	}
+
+	function markSessionExported(sessionId: string) {
+		completedTests = completedTests.map((session) =>
+			session.id === sessionId ? { ...session, exported: true } : session
+		);
+	}
+
+	async function exportReport(sessionId?: string) {
 		exportError = '';
 		exportMessage = '';
-		if (!canExport) {
-			exportError = '請先完成錄音並啟動至少一次測驗。';
+		const target = (() => {
+			if (!completedTests.length) return null;
+			if (sessionId) {
+				return completedTests.find((session) => session.id === sessionId) ?? null;
+			}
+			const pending = [...completedTests].reverse().find((session) => !session.exported);
+			return pending ?? completedTests[completedTests.length - 1];
+		})();
+		if (!target) {
+			exportError = '尚未有可匯出的測驗結果。';
 			return;
 		}
 		exporting = true;
 		try {
 			const { blob } = await createReportZip({
 				recordings,
-				testItems,
-				pair: { A: labelA, B: labelB },
-				requestedRoundsPerLabel: normalizedRounds,
-				executedRoundsPerLabel: testItems.length ? testItems.length / 2 : lastUsedRoundsPerLabel,
-				score
+				testItems: target.items,
+				pair: target.pair,
+				requestedRoundsPerLabel: target.requestedRoundsPerLabel,
+				executedRoundsPerLabel: target.executedRoundsPerLabel,
+				score: target.score
 			});
-			const filename = createReportFilename({ A: labelA, B: labelB });
+			const exportTimestamp = new Date(target.createdAt).getTime();
+			const filename = createReportFilename(target.pair, exportTimestamp);
 			downloadBlob(blob, filename);
+			markSessionExported(target.id);
 			exportMessage = '報告已下載。';
 		} catch (err) {
 			exportError = `匯出失敗：${(err as Error).message}`;
@@ -528,17 +598,52 @@
 			</div>
 		{/if}
 
-		<div class="space-y-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
-			<button
-				onclick={exportReport}
-				disabled={!canExport || exporting}
-				class="rounded-lg bg-gray-800 px-4 py-2 font-semibold text-white enabled:hover:bg-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
-			>
-				{exporting ? '匯出中⋯⋯' : '匯出報告（ZIP）'}
-			</button>
-			<p class="text-sm text-gray-600">
-				報告包含 report.json 與所有錄音（recordings/*.webm）。需至少執行一次測驗才可匯出。
-			</p>
+		<div class="space-y-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
+			<div class="space-y-2">
+				<button
+					onclick={() => exportReport()}
+					disabled={!canExport || exporting}
+					class="w-full rounded-lg bg-gray-800 px-4 py-2 font-semibold text-white enabled:hover:bg-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
+				>
+					{exporting ? '匯出中⋯⋯' : '匯出最新測驗（ZIP）'}
+				</button>
+				<p class="text-sm text-gray-600">
+					報告包含 report.json 與所有錄音（recordings/*.webm）。可隨時匯出任一已完成測驗。
+				</p>
+			</div>
+			{#if !completedTests.length}
+				<p class="text-sm text-gray-500">尚未有可匯出的測驗紀錄。</p>
+			{:else}
+				<div class="space-y-3">
+					<h3 class="text-base font-semibold">已完成測驗</h3>
+					<ul class="space-y-2">
+						{#each [...completedTests].slice().reverse() as session}
+							<li
+								class="flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between"
+							>
+								<div>
+									<p class="text-sm font-semibold">{session.pair.A} / {session.pair.B}</p>
+									<p class="text-xs text-gray-600">
+										{new Date(session.createdAt).toLocaleString()} · {session.score} / {session.totalRounds}（{session.accuracy}%）
+									</p>
+								</div>
+								<div class="flex items-center gap-2">
+									{#if session.exported}
+										<span class="text-xs font-semibold text-green-600">已匯出</span>
+									{/if}
+									<button
+										onclick={() => exportReport(session.id)}
+										disabled={exporting}
+										class="rounded-lg bg-gray-800 px-3 py-2 text-sm font-semibold text-white enabled:hover:bg-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
+									>
+										匯出
+									</button>
+								</div>
+							</li>
+						{/each}
+					</ul>
+				</div>
+			{/if}
 			{#if exportError}
 				<p class="text-sm font-semibold text-red-600">{exportError}</p>
 			{/if}
