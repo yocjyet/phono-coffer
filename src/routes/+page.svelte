@@ -115,8 +115,8 @@
 
 	const objectUrls: string[] = [];
 
-	let labelA = $derived(pairA.trim() || m.label_word_a({}, { locale: activeLocale }));
-	let labelB = $derived(pairB.trim() || m.label_word_b({}, { locale: activeLocale }));
+	let labelA = $derived(pairA.trim() || m.label_word_a());
+	let labelB = $derived(pairB.trim() || m.label_word_b());
 	let readyForTest = $derived(
 		recordings.A.length >= MIN_RECORDINGS_FOR_TEST && recordings.B.length >= MIN_RECORDINGS_FOR_TEST
 	);
@@ -157,11 +157,11 @@
 
 	async function ensureRecorder() {
 		if (!browser) {
-			recordError = m.error_browser_only({}, { locale: activeLocale });
+			recordError = m.error_browser_only();
 			return false;
 		}
 		if (!navigator.mediaDevices?.getUserMedia) {
-			recordError = m.error_no_media({}, { locale: activeLocale });
+			recordError = m.error_no_media();
 			return false;
 		}
 		if (!stream) {
@@ -261,11 +261,11 @@
 	async function startRecording(label: Label) {
 		recordError = '';
 		if (!pairA.trim() || !pairB.trim()) {
-			recordError = m.error_missing_pairs({}, { locale: activeLocale });
+			recordError = m.error_missing_pairs();
 			return;
 		}
 		if (isRecording) {
-			recordError = m.error_active_recording({}, { locale: activeLocale });
+			recordError = m.error_active_recording();
 			return;
 		}
 		try {
@@ -305,7 +305,7 @@
 			return;
 		}
 		if (browser && hasUnexportedTests) {
-			const proceed = window.confirm(m.confirm_new_test({}, { locale: activeLocale }));
+			const proceed = window.confirm(m.confirm_new_test());
 			if (!proceed) {
 				return;
 			}
@@ -375,7 +375,7 @@
 			resetAll();
 			return;
 		}
-		const confirmed = window.confirm(m.confirm_reset({}, { locale: activeLocale }));
+		const confirmed = window.confirm(m.confirm_reset());
 		if (confirmed) {
 			resetAll();
 		}
@@ -472,7 +472,7 @@
 			return pending ?? completedTests[completedTests.length - 1];
 		})();
 		if (!target) {
-			exportError = m.no_export_records({}, { locale: activeLocale });
+			exportError = m.no_export_records();
 			return;
 		}
 		exporting = true;
@@ -489,9 +489,9 @@
 			const filename = createReportFilename(target.pair, exportTimestamp);
 			downloadBlob(blob, filename);
 			markSessionExported(target.id);
-			exportMessage = m.export_success({}, { locale: activeLocale });
+			exportMessage = m.export_success();
 		} catch (err) {
-			exportError = m.export_failure({ message: (err as Error).message }, { locale: activeLocale });
+			exportError = m.export_failure({ message: (err as Error).message });
 		} finally {
 			exporting = false;
 		}
@@ -511,7 +511,7 @@
 
 	function terminateSession() {
 		if (!browser) return;
-		const confirmed = window.confirm(m.confirm_terminate({}, { locale: activeLocale }));
+		const confirmed = window.confirm(m.confirm_terminate());
 		if (!confirmed) return;
 		stopRecording();
 		currentAudio?.pause();
@@ -524,16 +524,16 @@
 </script>
 
 <svelte:head>
-	<title>{m.app_title({}, { locale: activeLocale })}</title>
+	<title>{m.app_title()}</title>
 </svelte:head>
 
 <div class="space-y-8 p-6">
 	<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-		<h1 class="text-3xl font-bold">{m.app_title({}, { locale: activeLocale })}</h1>
+		<h1 class="text-3xl font-bold">{m.app_title()}</h1>
 		<label
 			class="flex flex-col gap-1 text-sm font-semibold text-gray-700 sm:flex-row sm:items-center sm:gap-3"
 		>
-			<span>{m.language_label({}, { locale: activeLocale })}</span>
+			<span>{m.language_label()}</span>
 			<select
 				value={activeLocale}
 				onchange={(event) =>
@@ -548,32 +548,32 @@
 	</div>
 
 	<section class="space-y-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-		<h2 class="text-xl font-semibold">{m.step_input_title({}, { locale: activeLocale })}</h2>
+		<h2 class="text-xl font-semibold">{m.step_input_title()}</h2>
 		<div class="grid gap-4 sm:grid-cols-2">
 			<label class="space-y-2 font-medium">
-				<span>{m.label_word_a({}, { locale: activeLocale })}</span>
+				<span>{m.label_word_a()}</span>
 				<input
 					type="text"
-					placeholder={m.placeholder_word_a({}, { locale: activeLocale })}
+					placeholder={m.placeholder_word_a()}
 					bind:value={pairA}
 					class="w-full rounded-lg border border-gray-300 px-3 py-2 text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
 				/>
 			</label>
 			<label class="space-y-2 font-medium">
-				<span>{m.label_word_b({}, { locale: activeLocale })}</span>
+				<span>{m.label_word_b()}</span>
 				<input
 					type="text"
-					placeholder={m.placeholder_word_b({}, { locale: activeLocale })}
+					placeholder={m.placeholder_word_b()}
 					bind:value={pairB}
 					class="w-full rounded-lg border border-gray-300 px-3 py-2 text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
 				/>
 			</label>
 		</div>
-		<p class="text-sm text-gray-600">{m.step_input_hint({}, { locale: activeLocale })}</p>
+		<p class="text-sm text-gray-600">{m.step_input_hint()}</p>
 	</section>
 
 	<section class="space-y-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-		<h2 class="text-xl font-semibold">{m.step_record_title({}, { locale: activeLocale })}</h2>
+		<h2 class="text-xl font-semibold">{m.step_record_title()}</h2>
 		{#if recordError}
 			<p class="font-semibold text-red-600">{recordError}</p>
 		{/if}
@@ -603,14 +603,14 @@
 							disabled={!pairValue.trim() || (isRecording && !isActive)}
 							class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white enabled:hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
 						>
-							{m.start_recording({}, { locale: activeLocale })}
+							{m.start_recording()}
 						</button>
 						<button
 							onclick={stopRecording}
 							disabled={!isActive}
 							class="rounded-lg bg-gray-700 px-4 py-2 text-sm font-semibold text-white enabled:hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
 						>
-							{m.stop_recording({}, { locale: activeLocale })}
+							{m.stop_recording()}
 						</button>
 					</div>
 					{#if isActive}
@@ -626,7 +626,7 @@
 							<li class="flex items-center gap-3 text-sm">
 								<div class="flex flex-1 flex-col gap-1">
 									<span class="font-medium">
-										{m.recording_iteration({ index: rec.index }, { locale: activeLocale })}
+										{m.recording_iteration({ index: rec.index })}
 									</span>
 									<audio controls src={rec.url} class="w-full"></audio>
 								</div>
@@ -634,7 +634,7 @@
 									onclick={() => removeRecording(key as Label, rec.id)}
 									class="rounded-lg bg-red-600 px-3 py-2 font-semibold text-white enabled:hover:bg-red-700"
 								>
-									{m.re_record({}, { locale: activeLocale })}
+									{m.re_record()}
 								</button>
 							</li>
 						{/each}
@@ -646,16 +646,16 @@
 			onclick={() => confirmReset()}
 			class="rounded-lg bg-gray-800 px-4 py-2 font-semibold text-white hover:bg-gray-900"
 		>
-			{m.clear_recordings({}, { locale: activeLocale })}
+			{m.clear_recordings()}
 		</button>
 	</section>
 
 	<section class="space-y-5 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-		<h2 class="text-xl font-semibold">{m.step_test_title({}, { locale: activeLocale })}</h2>
-		<p class="text-sm text-gray-600">{m.step_test_hint({}, { locale: activeLocale })}</p>
+		<h2 class="text-xl font-semibold">{m.step_test_title()}</h2>
+		<p class="text-sm text-gray-600">{m.step_test_hint()}</p>
 		<div class="space-y-3">
 			<label class="space-y-2 font-medium">
-				<span>{m.rounds_label({}, { locale: activeLocale })}</span>
+				<span>{m.rounds_label()}</span>
 				<input
 					type="number"
 					min={MIN_ROUNDS_PER_LABEL}
@@ -665,7 +665,7 @@
 				/>
 			</label>
 			<p class="text-sm text-gray-600">
-				{m.rounds_summary({ total: normalizedRounds * 2 }, { locale: activeLocale })}
+				{m.rounds_summary({ total: normalizedRounds * 2 })}
 			</p>
 		</div>
 		<div class="flex flex-wrap items-center gap-4">
@@ -675,7 +675,7 @@
 					bind:checked={autoPlayNext}
 					class="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
 				/>
-				<span>{m.auto_play_label({}, { locale: activeLocale })}</span>
+				<span>{m.auto_play_label()}</span>
 			</label>
 		</div>
 		{#if testError}
@@ -687,7 +687,7 @@
 				disabled={!readyForTest}
 				class="w-full rounded-xl bg-blue-600 px-4 py-3 text-lg font-semibold text-white enabled:hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
 			>
-				{m.start_test({}, { locale: activeLocale })}
+				{m.start_test()}
 			</button>
 		{/if}
 
@@ -700,14 +700,14 @@
 						onclick={terminateSession}
 						class="w-fit rounded-lg bg-red-600 px-4 py-2 font-semibold text-white hover:bg-red-700"
 					>
-						{m.terminate_test({}, { locale: activeLocale })}
+						{m.terminate_test()}
 					</button>
 				</div>
 				<button
 					onclick={playCurrentSample}
 					class="w-full rounded-lg bg-green-600 px-4 py-2 font-semibold text-white hover:bg-green-700"
 				>
-					{m.play_prompt({}, { locale: activeLocale })}
+					{m.play_prompt()}
 				</button>
 				<div
 					class={`flex transform gap-3 transition ${hideChoices ? 'pointer-events-none scale-95 opacity-0' : 'opacity-100'}`}
@@ -733,7 +733,7 @@
 		{#if testComplete}
 			<div class="space-y-3 rounded-xl border border-gray-200 p-4">
 				<p class="text-lg font-semibold">
-					{m.score_summary({ score, total: totalRounds, accuracy }, { locale: activeLocale })}
+					{m.score_summary({ score, total: totalRounds, accuracy })}
 				</p>
 				<p class="text-sm text-gray-700">
 					{m.correct_wrong_summary(
@@ -748,7 +748,7 @@
 							? item.response === 'A'
 								? labelA
 								: labelB
-							: m.unanswered({}, { locale: activeLocale })}
+							: m.unanswered()}
 						<li class="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2">
 							<span>
 								{m.question_feedback(
@@ -772,20 +772,18 @@
 					disabled={!canExport || exporting}
 					class="w-full rounded-lg bg-gray-800 px-4 py-2 font-semibold text-white enabled:hover:bg-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
 				>
-					{exporting
-						? m.export_btn_loading({}, { locale: activeLocale })
-						: m.export_btn_ready({}, { locale: activeLocale })}
+					{exporting ? m.export_btn_loading() : m.export_btn_ready()}
 				</button>
 				<p class="text-sm text-gray-600">
-					{m.export_info({}, { locale: activeLocale })}
+					{m.export_info()}
 				</p>
 			</div>
 			{#if !completedTests.length}
-				<p class="text-sm text-gray-500">{m.no_export_records({}, { locale: activeLocale })}</p>
+				<p class="text-sm text-gray-500">{m.no_export_records()}</p>
 			{:else}
 				<div class="space-y-3">
 					<h3 class="text-base font-semibold">
-						{m.completed_tests_title({}, { locale: activeLocale })}
+						{m.completed_tests_title()}
 					</h3>
 					<ul class="space-y-2">
 						{#each [...completedTests].slice().reverse() as session}
@@ -818,7 +816,7 @@
 								<div class="flex items-center gap-2">
 									{#if session.exported}
 										<span class="text-xs font-semibold text-green-600">
-											{m.exported_badge({}, { locale: activeLocale })}
+											{m.exported_badge()}
 										</span>
 									{/if}
 									<button
@@ -826,7 +824,7 @@
 										disabled={exporting}
 										class="rounded-lg bg-gray-800 px-3 py-2 text-sm font-semibold text-white enabled:hover:bg-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
 									>
-										{m.export_button({}, { locale: activeLocale })}
+										{m.export_button()}
 									</button>
 								</div>
 							</li>
