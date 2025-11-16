@@ -515,7 +515,7 @@
 			onclick={resetAll}
 			class="rounded-lg bg-gray-800 px-4 py-2 font-semibold text-white hover:bg-gray-900"
 		>
-			重新開始
+			清除錄音
 		</button>
 	</section>
 
