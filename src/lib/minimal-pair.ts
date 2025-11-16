@@ -188,5 +188,5 @@ export function sanitizeFilenamePart(input: string) {
 export function createReportFilename(pair: { A: string; B: string }, timestamp = Date.now()) {
 	const safeA = sanitizeFilenamePart(pair.A || '詞語A');
 	const safeB = sanitizeFilenamePart(pair.B || '詞語B');
-	return `${safeA}_${safeB}_report_${timestamp}.zip`;
+	return `minimal-pair-test_${safeA}_${safeB}_${timestamp}.zip`;
 }
