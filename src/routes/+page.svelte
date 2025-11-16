@@ -200,6 +200,22 @@
 		return labelOptions.some((option) => !option.value.trim());
 	}
 
+	function clearRecordingsForLabel(label: Label) {
+		const bucket = recordings[label] ?? [];
+		if (!bucket.length) return;
+		bucket.forEach((rec) => {
+			URL.revokeObjectURL(rec.url);
+			const idx = objectUrls.indexOf(rec.url);
+			if (idx !== -1) {
+				objectUrls.splice(idx, 1);
+			}
+		});
+		recordings = {
+			...recordings,
+			[label]: []
+		};
+	}
+
 	const labelDisplayMap = $derived(
 		labelOptions.reduce<Record<Label, string>>((acc, option) => {
 			const trimmed = option.value.trim();
@@ -744,6 +760,16 @@
 							<IconStopCircle class="h-5 w-5" aria-hidden="true" />
 							<span>{m.stop_recording()}</span>
 						</button>
+						{#if items.length}
+							<button
+								onclick={() => clearRecordingsForLabel(option.id)}
+								class="flex items-center justify-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
+								type="button"
+							>
+								<IconDelete class="h-4 w-4" aria-hidden="true" />
+								<span>{m.clear_recordings()}</span>
+							</button>
+						{/if}
 					</div>
 					{#if isActive}
 						<p class="text-sm font-semibold text-blue-700">
