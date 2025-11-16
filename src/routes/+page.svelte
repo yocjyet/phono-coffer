@@ -231,9 +231,8 @@
 			)
 	);
 	let normalizedRounds = $derived(clampRounds(roundsPerLabel));
-	let totalRounds = $derived(
-		testItems.length || normalizedRounds * Math.max(labelOptions.length, 0)
-	);
+	let totalPlannedRounds = $derived(normalizedRounds * Math.max(labelOptions.length, 0));
+	let totalRounds = $derived(testItems.length || totalPlannedRounds);
 	let progressText = $derived(
 		testActive && testItems.length
 			? m.progress_label(
@@ -672,14 +671,27 @@
 	</div>
 
 	<section class="space-y-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-		<h2 class="text-xl font-semibold">{m.step_input_title()}</h2>
-		<div class="space-y-3">
+		<h2 class="text-xl font-semibold text-gray-900">{m.step_input_title()}</h2>
+		<div class="grid gap-4 md:grid-cols-2">
 			{#each labelOptions as option, index (option.id)}
-				<div class="flex items-center justify-between gap-3 rounded-xl border border-gray-200 p-4">
-					<div class="flex items-center justify-between">
-						<span class="flex items-center gap-2">
+				<div class="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-gray-50/70 p-4">
+					<div class="flex items-center justify-between gap-3">
+						<div class="flex items-center gap-2">
 							<IconTag class="h-4 w-4 text-blue-600" aria-hidden="true" />
-						</span>
+							<span class="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-gray-600">
+								{option.id}
+							</span>
+						</div>
+						{#if labelOptions.length > 2}
+							<button
+								type="button"
+								onclick={() => removeLabelOption(option.id)}
+								class="text-sm font-semibold text-gray-400 transition hover:text-red-600"
+								aria-label={`Remove option ${labelDisplayMap[option.id]}`}
+							>
+								<IconDelete class="h-4 w-4" aria-hidden="true" />
+							</button>
+						{/if}
 					</div>
 					<input
 						type="text"
@@ -691,38 +703,30 @@
 							: index === 1
 								? m.placeholder_word_b()
 								: m.placeholder_word_b()}
-						class="w-full rounded-lg border border-gray-300 px-3 py-2 text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+						class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
 					/>
-					{#if labelOptions.length > 2}
-						<button
-							type="button"
-							onclick={() => removeLabelOption(option.id)}
-							class="text-sm font-semibold text-gray-500 hover:text-red-600"
-							aria-label={`Remove option ${labelDisplayMap[option.id]}`}
-						>
-							Remove
-						</button>
-					{/if}
 				</div>
 			{/each}
 		</div>
 		<div class="flex justify-end">
 			<button
 				onclick={addLabelOption}
-				class="flex items-center gap-2 rounded-lg border border-dashed border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:border-blue-500 hover:text-blue-600"
+				class="flex items-center gap-2 rounded-xl border border-dashed border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:border-blue-500 hover:text-blue-600"
 				type="button"
 			>
 				<IconPlus class="h-4 w-4" aria-hidden="true" />
-				Add option
+				{m.add_word_button()}
 			</button>
 		</div>
 		<p class="text-sm text-gray-600">{m.step_input_hint()}</p>
 	</section>
 
 	<section class="space-y-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-		<h2 class="text-xl font-semibold">{m.step_record_title()}</h2>
+		<h2 class="text-xl font-semibold text-gray-900">{m.step_record_title()}</h2>
 		{#if recordError}
-			<p class="font-semibold text-red-600">{recordError}</p>
+			<p class="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
+				{recordError}
+			</p>
 		{/if}
 		<div class="grid gap-4 lg:grid-cols-2">
 			{#each labelOptions as option (option.id)}
@@ -730,24 +734,37 @@
 				{@const items = recordings[option.id] ?? []}
 				{@const isActive = isRecording === option.id}
 				<div
-					class={`rounded-2xl border bg-gray-50 p-4 shadow-sm transition ${
-						isActive ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-200'
+					class={`flex flex-col gap-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition ${
+						isActive ? 'ring-2 ring-blue-200' : ''
 					}`}
 				>
-					<div class="flex items-center justify-between">
-						<h3 class="text-lg font-semibold">{labelText}</h3>
-						<span class="text-sm text-gray-600">
-							{m.recordings_summary(
-								{ count: items.length, recommended: RECOMMENDED_RECORDINGS },
-								{ locale: activeLocale }
-							)}
+					<div class="flex items-center justify-between gap-3 border-b border-gray-100 pb-3">
+						<div>
+							<p class="text-lg font-semibold text-gray-900">{labelText}</p>
+							<p class="text-xs text-gray-500">
+								{m.recordings_summary(
+									{ count: items.length, recommended: RECOMMENDED_RECORDINGS },
+									{ locale: activeLocale }
+								)}
+							</p>
+						</div>
+						<span class="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600">
+							{items.length}<span class="text-gray-400">/{RECOMMENDED_RECORDINGS}</span>
 						</span>
 					</div>
-					<div class="flex flex-wrap gap-2">
+					{#if isActive}
+						<p class="rounded-lg bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700">
+							{m.recording_status(
+								{ label: labelText, timer: timerDisplay },
+								{ locale: activeLocale }
+							)}
+						</p>
+					{/if}
+					<div class="flex flex-wrap items-center gap-2">
 						<button
 							onclick={() => startRecording(option.id)}
 							disabled={!option.value.trim() || (!!isRecording && !isActive)}
-							class="flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white enabled:hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+							class="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white enabled:hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
 						>
 							<IconMicrophone class="h-5 w-5" aria-hidden="true" />
 							<span>{m.start_recording()}</span>
@@ -755,7 +772,7 @@
 						<button
 							onclick={stopRecording}
 							disabled={!isActive}
-							class="flex items-center justify-center gap-2 rounded-lg bg-gray-700 px-4 py-2 text-sm font-semibold text-white enabled:hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+							class="flex items-center gap-2 rounded-xl bg-gray-700 px-4 py-2 text-sm font-semibold text-white enabled:hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
 						>
 							<IconStopCircle class="h-5 w-5" aria-hidden="true" />
 							<span>{m.stop_recording()}</span>
@@ -763,7 +780,7 @@
 						{#if items.length}
 							<button
 								onclick={() => clearRecordingsForLabel(option.id)}
-								class="flex items-center justify-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
+								class="flex items-center gap-2 rounded-xl border border-red-100 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
 								type="button"
 							>
 								<IconDelete class="h-4 w-4" aria-hidden="true" />
@@ -771,47 +788,50 @@
 							</button>
 						{/if}
 					</div>
-					{#if isActive}
-						<p class="text-sm font-semibold text-blue-700">
-							{m.recording_status(
-								{ label: labelText, timer: timerDisplay },
+					{#if !items.length}
+						<p class="rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-500">
+							{m.recordings_summary(
+								{ count: items.length, recommended: RECOMMENDED_RECORDINGS },
 								{ locale: activeLocale }
 							)}
 						</p>
+					{:else}
+						<ul class="space-y-2">
+							{#each items as rec}
+								<li class="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50/70 px-3 py-2 text-sm">
+									<div class="flex flex-1 flex-col gap-1">
+										<span class="font-medium text-gray-800">
+											{m.recording_iteration({ index: rec.index })}
+										</span>
+										<audio controls src={rec.url} class="w-full"></audio>
+									</div>
+									<button
+										onclick={() => removeRecording(option.id, rec.id)}
+										class="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:text-red-600"
+									>
+										<IconRefresh class="h-4 w-4" aria-hidden="true" />
+										<span>{m.re_record()}</span>
+									</button>
+								</li>
+							{/each}
+						</ul>
 					{/if}
-					<ul class="space-y-3">
-						{#each items as rec}
-							<li class="flex items-center gap-3 text-sm">
-								<div class="flex flex-1 flex-col gap-1">
-									<span class="font-medium">
-										{m.recording_iteration({ index: rec.index })}
-									</span>
-									<audio controls src={rec.url} class="w-full"></audio>
-								</div>
-								<button
-									onclick={() => removeRecording(option.id, rec.id)}
-									class="flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 font-semibold text-white enabled:hover:bg-red-700"
-								>
-									<IconRefresh class="h-4 w-4" aria-hidden="true" />
-									<span>{m.re_record()}</span>
-								</button>
-							</li>
-						{/each}
-					</ul>
 				</div>
 			{/each}
 		</div>
-		<button
-			onclick={() => confirmReset()}
-			class="flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2 font-semibold text-white hover:bg-red-700"
-		>
-			<IconDelete class="h-5 w-5" aria-hidden="true" />
-			<span>{m.clear_recordings()}</span>
-		</button>
+		<div class="flex justify-end">
+			<button
+				onclick={() => confirmReset()}
+				class="flex items-center gap-2 rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:border-red-400 hover:text-red-600"
+			>
+				<IconDelete class="h-4 w-4" aria-hidden="true" />
+				<span>{m.clear_recordings()}</span>
+			</button>
+		</div>
 	</section>
 
 	<section class="space-y-5 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-		<h2 class="text-xl font-semibold">{m.step_test_title()}</h2>
+		<h2 class="text-xl font-semibold text-gray-900">{m.step_test_title()}</h2>
 		<p class="text-sm text-gray-600">{m.step_test_hint()}</p>
 		<div class="space-y-3">
 			<label class="space-y-2 font-medium">
@@ -825,7 +845,7 @@
 				/>
 			</label>
 			<p class="text-sm text-gray-600">
-				{m.rounds_summary({ total: normalizedRounds * 2 })}
+				{m.rounds_summary({ total: totalPlannedRounds })}
 			</p>
 		</div>
 		<div class="flex flex-wrap items-center gap-4">
