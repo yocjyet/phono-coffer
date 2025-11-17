@@ -160,6 +160,7 @@
 	let score = $state(0);
 	let testActive = $state(false);
 	let testComplete = $state(false);
+	let startingTest = $state(false);
 	let currentSessionId = $state<string | null>(null);
 	let completedTests = $state<CompletedTest[]>([]);
 	let currentLabelsSnapshot = $state<LabelDefinition[] | null>(null);
@@ -447,17 +448,21 @@
 	}
 
 	async function startTest() {
+		if (startingTest) return;
+		startingTest = true;
 		testError = '';
 		if (!readyForTest) {
 			testError = m.error_min_recordings(
 				{ min: MIN_RECORDINGS_FOR_TEST },
 				{ locale: activeLocale }
 			);
+			startingTest = false;
 			return;
 		}
 		if (browser && hasUnexportedTests) {
 			const proceed = window.confirm(m.confirm_new_test());
 			if (!proceed) {
+				startingTest = false;
 				return;
 			}
 		}
@@ -471,28 +476,29 @@
 			buildSampleSet(recordings, option.id, perLabel)
 		);
 
-			const queue: TestRunItem[] = shuffle(selections).map((sample) => ({
-				id: createId(),
-				sample,
-				response: null,
-				correct: null,
-				lastPlayedAt: null,
-				reactionTimeMs: null
-			}));
+		const queue: TestRunItem[] = shuffle(selections).map((sample) => ({
+			id: createId(),
+			sample,
+			response: null,
+			correct: null,
+			lastPlayedAt: null,
+			reactionTimeMs: null
+		}));
 
-			testItems = queue;
-			currentTestIndex = 0;
-			score = 0;
-			testComplete = false;
-			currentSessionId = queue.length ? createId() : null;
-			if (queue.length) {
-				await playChimeNotification();
-				testActive = true;
-				if (autoPlayNext) {
-					playCurrentSample();
-				}
+		testItems = queue;
+		currentTestIndex = 0;
+		score = 0;
+		testComplete = false;
+		currentSessionId = queue.length ? createId() : null;
+		if (queue.length) {
+			await playChimeNotification();
+			testActive = true;
+			if (autoPlayNext) {
+				playCurrentSample();
 			}
 		}
+		startingTest = false;
+	}
 
 	function playCurrentSample() {
 		const current = testItems[currentTestIndex];
@@ -926,11 +932,11 @@
 		{#if !testActive}
 			<button
 				onclick={startTest}
-				disabled={!readyForTest}
+				disabled={!readyForTest || startingTest}
 				class="flex w-full items-center justify-center gap-3 rounded-xl bg-blue-600 px-4 py-3 text-lg font-semibold text-white enabled:hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
 			>
 				<IconPlayCircle class="h-6 w-6" aria-hidden="true" />
-				<span>{m.start_test()}</span>
+				<span>{startingTest ? 'Starting…' : m.start_test()}</span>
 			</button>
 		{/if}
 
