@@ -13,9 +13,9 @@
 </svelte:head>
 
 <header
-	class="@container relative flex flex-col gap-4 border-b border-gray-100 bg-white/80 py-4 pr-28 pl-6 text-sm text-gray-500 shadow-sm @[md]:gap-6 @[md]:pr-40"
+	class="@container relative flex flex-col gap-4 border-b border-gray-100 bg-white/80 py-4 pr-28 pl-6 text-sm text-gray-500 shadow-sm"
 >
-	<div class="flex flex-col gap-2 @[md]:flex-row @[md]:items-center @[md]:gap-3">
+	<div class="flex flex-col gap-2">
 		<a href="/" class="text-sm font-semibold tracking-wide text-blue-600 uppercase"
 			>PhonoCoffer 韻匣</a
 		>
