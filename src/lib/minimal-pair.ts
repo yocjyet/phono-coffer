@@ -27,7 +27,7 @@ export type TestItem = {
 
 export type RecordingsMap = Record<Label, Recording[]>;
 
-export const RECOMMENDED_RECORDINGS = 10;
+export const RECOMMENDED_RECORDINGS = 2;
 export const MIN_RECORDINGS_FOR_TEST = 1;
 export const DEFAULT_ROUNDS_PER_LABEL = 5;
 export const MIN_ROUNDS_PER_LABEL = 1;
@@ -95,7 +95,14 @@ type ReportStrings = {
 	recordingsHeaders: { label: string; word: string; index: string; filename: string };
 	recordingsEmpty: string;
 	testsTitle: string;
-	testsHeaders: { order: string; played: string; recording: string; answer: string; result: string; reaction: string };
+	testsHeaders: {
+		order: string;
+		played: string;
+		recording: string;
+		answer: string;
+		result: string;
+		reaction: string;
+	};
 	testsEmpty: string;
 	recordingFilenameMissing: string;
 	unanswered: string;
@@ -107,7 +114,7 @@ type ReportStrings = {
 type ReportLocale = 'zh-hant' | 'en' | 'zh-hans' | 'ja';
 
 const REPORT_STRINGS: Record<ReportLocale, ReportStrings> = {
-	'en': {
+	en: {
 		valueSeparator: ': ',
 		title: 'Minimal Pair Test Report',
 		generatedAtLabel: 'Generated at',
@@ -323,7 +330,10 @@ export function buildConfusionMatrix(items: TestItem[], labelOrder: Label[]): Co
 		: Array.from(new Set(items.map((item) => item.sample.label)));
 	const actualSet = new Set(baseOrder);
 	items.forEach((item) => actualSet.add(item.sample.label));
-	const actual = [...baseOrder, ...Array.from(actualSet).filter((label) => !baseOrder.includes(label))];
+	const actual = [
+		...baseOrder,
+		...Array.from(actualSet).filter((label) => !baseOrder.includes(label))
+	];
 	const guessSet = new Set<Label | typeof UNANSWERED_GUESS>(baseOrder);
 	items.forEach((item) => {
 		if (item.response) {
@@ -334,7 +344,8 @@ export function buildConfusionMatrix(items: TestItem[], labelOrder: Label[]): Co
 	const guessed = [
 		...baseOrder,
 		...Array.from(guessSet).filter(
-			(label): label is Label => typeof label === 'string' && label !== UNANSWERED_GUESS && !baseOrder.includes(label)
+			(label): label is Label =>
+				typeof label === 'string' && label !== UNANSWERED_GUESS && !baseOrder.includes(label)
 		),
 		UNANSWERED_GUESS
 	];
@@ -443,7 +454,12 @@ export type ReportPayload = {
 };
 
 function escapeMarkdownCell(value: string) {
-	return value.replace(/\|/g, '\\|').replace(/\r?\n|\r/g, ' ').trim() || '-';
+	return (
+		value
+			.replace(/\|/g, '\\|')
+			.replace(/\r?\n|\r/g, ' ')
+			.trim() || '-'
+	);
 }
 
 function formatReactionValue(ms: number | null) {
@@ -455,7 +471,8 @@ function formatReactionValue(ms: number | null) {
 
 function createReportMarkdown(payload: ReportPayload) {
 	const strings = getReportStrings(payload.locale);
-	const valueLine = (label: string, value: string | number) => `${label}${strings.valueSeparator}${value}`;
+	const valueLine = (label: string, value: string | number) =>
+		`${label}${strings.valueSeparator}${value}`;
 	const fallbackLabels =
 		payload.labels.length > 0
 			? payload.labels
@@ -480,7 +497,9 @@ function createReportMarkdown(payload: ReportPayload) {
 
 	lines.push(`## ${strings.wordsTitle}`, '');
 	if (Object.keys(labelMap).length) {
-		lines.push(`| ${strings.wordsHeaders.label} | ${strings.wordsHeaders.word} | ${strings.wordsHeaders.recordings} |`);
+		lines.push(
+			`| ${strings.wordsHeaders.label} | ${strings.wordsHeaders.word} | ${strings.wordsHeaders.recordings} |`
+		);
 		lines.push('| --- | --- | --- |');
 		Object.keys(labelMap).forEach((key) => {
 			const count = payload.totals.perLabel[key] ?? 0;
@@ -492,9 +511,14 @@ function createReportMarkdown(payload: ReportPayload) {
 	}
 
 	lines.push(`## ${strings.settingsTitle}`, '');
-	lines.push(`- ${valueLine(strings.settingsRecommended, payload.settings.recommendedRoundsPerLabel)}`);
+	lines.push(
+		`- ${valueLine(strings.settingsRecommended, payload.settings.recommendedRoundsPerLabel)}`
+	);
 	lines.push(`- ${valueLine(strings.settingsRequested, payload.settings.requestedRoundsPerLabel)}`);
-	lines.push(`- ${valueLine(strings.settingsExecuted, payload.settings.executedRoundsPerLabel)}`, '');
+	lines.push(
+		`- ${valueLine(strings.settingsExecuted, payload.settings.executedRoundsPerLabel)}`,
+		''
+	);
 
 	lines.push(`## ${strings.summaryTitle}`, '');
 	lines.push(`- ${valueLine(strings.summaryQuestions, payload.totals.questions)}`);
@@ -505,9 +529,16 @@ function createReportMarkdown(payload: ReportPayload) {
 	lines.push(`## ${strings.reactionTitle}`, '');
 	if (payload.reaction.totalAnswered) {
 		lines.push(`- ${valueLine(strings.reactionLast, formatReactionValue(payload.reaction.last))}`);
-		lines.push(`- ${valueLine(strings.reactionOverall, formatReactionValue(payload.reaction.overall))}`);
-		lines.push(`- ${valueLine(strings.reactionCorrect, formatReactionValue(payload.reaction.correct))}`);
-		lines.push(`- ${valueLine(strings.reactionIncorrect, formatReactionValue(payload.reaction.incorrect))}`, '');
+		lines.push(
+			`- ${valueLine(strings.reactionOverall, formatReactionValue(payload.reaction.overall))}`
+		);
+		lines.push(
+			`- ${valueLine(strings.reactionCorrect, formatReactionValue(payload.reaction.correct))}`
+		);
+		lines.push(
+			`- ${valueLine(strings.reactionIncorrect, formatReactionValue(payload.reaction.incorrect))}`,
+			''
+		);
 	} else {
 		lines.push(strings.reactionEmpty, '');
 	}
@@ -515,7 +546,9 @@ function createReportMarkdown(payload: ReportPayload) {
 	lines.push(`## ${strings.confusionTitle}`, '');
 	if (payload.confusion.actual.length && payload.confusion.guessed.length) {
 		const headerCells = payload.confusion.guessed.map((guess) =>
-			guess === UNANSWERED_GUESS ? strings.confusionUnanswered : escapeMarkdownCell(labelMap[guess] ?? guess)
+			guess === UNANSWERED_GUESS
+				? strings.confusionUnanswered
+				: escapeMarkdownCell(labelMap[guess] ?? guess)
 		);
 		lines.push(`| ${strings.confusionHeader} | ${headerCells.join(' | ')} |`);
 		lines.push(`| --- | ${headerCells.map(() => '---').join(' | ')} |`);
@@ -556,11 +589,11 @@ function createReportMarkdown(payload: ReportPayload) {
 		lines.push('| --- | --- | --- | --- | --- | --- |');
 		payload.tests.forEach((item) => {
 			const played = escapeMarkdownCell(labelMap[item.playedLabel]);
-			const recordingName = escapeMarkdownCell(item.recordingFilename ?? strings.recordingFilenameMissing);
+			const recordingName = escapeMarkdownCell(
+				item.recordingFilename ?? strings.recordingFilenameMissing
+			);
 			const response =
-				item.response === null
-					? strings.unanswered
-					: escapeMarkdownCell(labelMap[item.response]);
+				item.response === null ? strings.unanswered : escapeMarkdownCell(labelMap[item.response]);
 			const result =
 				item.correct === null
 					? strings.resultPending
@@ -653,7 +686,10 @@ export async function createReportZip(params: {
 	});
 
 	const reaction = summarizeReactionTimes(testItems);
-	const confusion = buildConfusionMatrix(testItems, labels.map((label) => label.id));
+	const confusion = buildConfusionMatrix(
+		testItems,
+		labels.map((label) => label.id)
+	);
 
 	const resolvedLocale = locale ?? 'en';
 
@@ -699,12 +735,13 @@ export function sanitizeFilenamePart(input: string) {
 }
 
 export function createReportFilename(labels: LabelsSnapshot, timestamp = Date.now()) {
-	const safeNames = (labels.length
-		? labels
-		: [
-				{ id: 'A', value: '詞語A' },
-				{ id: 'B', value: '詞語B' }
-			]
+	const safeNames = (
+		labels.length
+			? labels
+			: [
+					{ id: 'A', value: '詞語A' },
+					{ id: 'B', value: '詞語B' }
+				]
 	)
 		.map((label) => sanitizeFilenamePart(label.value || label.id))
 		.filter(Boolean);

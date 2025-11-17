@@ -251,6 +251,7 @@
 			)
 	);
 	let normalizedRounds = $derived(clampRounds(roundsPerLabel));
+	let recommendedRecordings = $derived(Math.max(RECOMMENDED_RECORDINGS, normalizedRounds));
 	let totalPlannedRounds = $derived(normalizedRounds * Math.max(labelOptions.length, 0));
 	let totalRounds = $derived(testItems.length || totalPlannedRounds);
 	let progressText = $derived(
@@ -759,7 +760,9 @@
 
 	<section class="space-y-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
 		<div class="flex justify-between">
-			<h2 class="text-xl font-semibold text-gray-900">{m.step_record_title()}</h2>
+			<h2 class="text-xl font-semibold text-gray-900">
+				{m.step_record_title({ recommended: recommendedRecordings })}
+			</h2>
 			<button
 				onclick={() => confirmReset()}
 				class={`${dangerButtonClasses} text-sm`}
@@ -789,26 +792,26 @@
 					<div class="flex items-center justify-between gap-3 border-b border-gray-100 pb-3">
 						<div>
 							<p class="text-lg font-semibold text-gray-900">{labelText}</p>
-							<p class="text-xs text-gray-500">
-								{m.recordings_summary(
-									{ count: items.length, recommended: RECOMMENDED_RECORDINGS },
-									{ locale: activeLocale }
-								)}
-							</p>
-						</div>
-						<span class="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600">
-							{items.length}<span class="text-gray-400">/{RECOMMENDED_RECORDINGS}</span>
-						</span>
+						<p class="text-xs text-gray-500">
+							{m.recordings_summary(
+								{ count: items.length, recommended: recommendedRecordings },
+								{ locale: activeLocale }
+							)}
+						</p>
+					</div>
+					<span class="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600">
+						{items.length}<span class="text-gray-400">/{recommendedRecordings}</span>
+					</span>
 					</div>
 					<div class="flex flex-wrap items-center justify-between gap-2">
-						<button
-							type="button"
-							onclick={() => (isActive ? stopRecording() : startRecording(option.id))}
-							disabled={(!isActive && !option.value.trim()) || (!!isRecording && !isActive)}
-							class={`flex min-w-[170px] items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50 ${
-								isActive
-									? 'bg-gray-700 enabled:hover:bg-gray-800'
-									: 'bg-blue-600 enabled:hover:bg-blue-700'
+					<button
+						type="button"
+						onclick={() => (isActive ? stopRecording() : startRecording(option.id))}
+						disabled={!!isRecording && !isActive}
+						class={`flex min-w-[170px] items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50 ${
+							isActive
+								? 'bg-gray-700 enabled:hover:bg-gray-800'
+								: 'bg-blue-600 enabled:hover:bg-blue-700'
 							}`}
 						>
 							{#if isActive}
@@ -841,7 +844,7 @@
 					{#if !items.length}
 						<p class="rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-500">
 							{m.recordings_summary(
-								{ count: items.length, recommended: RECOMMENDED_RECORDINGS },
+								{ count: items.length, recommended: recommendedRecordings },
 								{ locale: activeLocale }
 							)}
 						</p>
@@ -873,7 +876,9 @@
 
 	<section class="space-y-5 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
 		<h2 class="text-xl font-semibold text-gray-900">{m.step_test_title()}</h2>
-		<p class="text-sm text-gray-600">{m.step_test_hint()}</p>
+		<p class="text-sm text-gray-600">
+			{m.step_test_hint({ recommended: recommendedRecordings, min: MIN_RECORDINGS_FOR_TEST })}
+		</p>
 		<div class="space-y-3">
 			<label class="space-y-2 font-medium">
 				<span>{m.rounds_label()}</span>
