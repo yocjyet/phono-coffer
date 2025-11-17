@@ -1,0 +1,1215 @@
+<script lang="ts">
+	import { browser } from '$app/environment';
+	import { onDestroy } from 'svelte';
+	import { m } from '$lib/paraglide/messages';
+	import { getLocale, locales, setLocale } from '$lib/paraglide/runtime';
+	import IconTranslate from '~icons/mdi/translate-variant';
+	import IconMicrophone from '~icons/mdi/microphone';
+	import IconStopCircle from '~icons/mdi/stop-circle';
+	import IconRefresh from '~icons/mdi/refresh';
+	import IconPlayCircle from '~icons/mdi/play-circle';
+	import IconHeadphones from '~icons/mdi/headphones';
+	import IconExport from '~icons/mdi/export-variant';
+	import IconPower from '~icons/mdi/power';
+	import IconDelete from '~icons/mdi/delete-outline';
+	import IconPlus from '~icons/mdi/plus';
+	import IconTag from '~icons/mdi/tag-outline';
+	import chimeUrl from '$lib/assets/chime.mp3';
+	import tingUrl from '$lib/assets/ting.mp3';
+	import {
+		buildSampleSet,
+		clampRounds,
+		createId,
+		createReportZip,
+		createReportFilename,
+		DEFAULT_ROUNDS_PER_LABEL,
+		MAX_ROUNDS_PER_LABEL,
+		MIN_RECORDINGS_FOR_TEST,
+		MIN_ROUNDS_PER_LABEL,
+		RECOMMENDED_RECORDINGS,
+		shuffle,
+		type Label,
+		type LabelDefinition,
+		type Recording,
+		type RecordingsMap,
+		type TestItem,
+		formatDuration,
+		summarizeReactionTimes,
+		buildConfusionMatrix,
+		UNANSWERED_GUESS
+	} from '$lib/minimal-pair';
+
+	type TestRunItem = TestItem & {
+		lastPlayedAt: number | null;
+		reactionTimeMs: number | null;
+	};
+
+	type CompletedTest = {
+		id: string;
+		items: TestRunItem[];
+		score: number;
+		totalRounds: number;
+		executedRoundsPerLabel: number;
+		requestedRoundsPerLabel: number;
+		accuracy: number;
+		createdAt: string;
+		exported: boolean;
+		labels: LabelDefinition[];
+		locale: Locale;
+	};
+
+	function formatReactionTime(ms: number | null) {
+		if (ms === null || Number.isNaN(ms)) {
+			return 'N/A';
+		}
+		return `${(ms / 1000).toFixed(2)}s`;
+	}
+
+	const DEFAULT_LABELS: LabelDefinition[] = [
+		{ id: 'A', value: '' },
+		{ id: 'B', value: '' }
+	];
+
+	function cloneLabels(labels: LabelDefinition[]) {
+		return labels.map((label) => ({ ...label }));
+	}
+
+	function fallbackLabelName(id: Label) {
+		return m.label_word_generic({ id }) || id;
+	}
+
+	function nextLabelId(existing: Label[]) {
+		const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+		for (const char of alphabet) {
+			if (!existing.includes(char)) {
+				return char;
+			}
+		}
+		let counter = existing.length + 1;
+		let candidate = '';
+		do {
+			candidate = `L${counter}`;
+			counter += 1;
+		} while (existing.includes(candidate));
+		return candidate;
+	}
+
+	type Locale = (typeof locales)[number];
+
+	const localeList = locales as readonly Locale[];
+
+	const displayNames =
+		browser && typeof Intl?.DisplayNames === 'function'
+			? new Intl.DisplayNames([navigator.language || 'en'], { type: 'language' })
+			: null;
+
+	const localeNames = $derived(
+		localeList.reduce(
+			(acc, code) => {
+				acc[code] = (displayNames?.of(code) as string | undefined) ?? code;
+				return acc;
+			},
+			{} as Record<Locale, string>
+		)
+	);
+	const dangerButtonClasses =
+		'inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 font-semibold text-white transition hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 disabled:cursor-not-allowed disabled:opacity-60';
+
+	const initialLocale = (() => {
+		let fallback = localeList[0];
+		try {
+			const resolved = getLocale() as Locale;
+			if (localeList.includes(resolved)) {
+				fallback = resolved;
+			}
+		} catch {
+			/* no-op, fallback already set */
+		}
+		return fallback;
+	})();
+
+	let activeLocale = $state<Locale>(initialLocale);
+
+	function switchLocale(locale: Locale) {
+		if (locale === activeLocale) return;
+		setLocale(locale, { reload: false });
+		activeLocale = locale;
+	}
+
+	const RECORDER_MIME_CANDIDATES = [
+		'audio/webm;codecs=opus',
+		'audio/webm',
+		'audio/ogg;codecs=opus',
+		'audio/ogg',
+		'audio/mp4;codecs=mp4a.40.2',
+		'audio/mp4',
+		'audio/aac'
+	];
+
+	let labelOptions = $state<LabelDefinition[]>(cloneLabels(DEFAULT_LABELS));
+
+	let recordings = $state<RecordingsMap>({
+		A: [],
+		B: []
+	});
+	let recordError = $state('');
+	let testError = $state('');
+
+	let stream = $state<MediaStream | null>(null);
+	let mediaRecorder = $state<MediaRecorder | null>(null);
+	let audioChunks = $state<Blob[]>([]);
+	let recordingTarget = $state<Label | null>(null);
+	let isRecording = $state<Label | null>(null);
+	let recordingTimer = $state(0);
+	let timerInterval: ReturnType<typeof setInterval> | null = null;
+	let recorderMimeType = $state<string | null>(null);
+
+	let testItems = $state<TestRunItem[]>([]);
+	let currentTestIndex = $state(0);
+	let score = $state(0);
+	let testActive = $state(false);
+	let testComplete = $state(false);
+	let startingTest = $state(false);
+	let samplePlaying = $state(false);
+	let currentSessionId = $state<string | null>(null);
+	let completedTests = $state<CompletedTest[]>([]);
+	let currentLabelsSnapshot = $state<LabelDefinition[] | null>(null);
+	let currentAudio: HTMLAudioElement | null = null;
+	let roundsPerLabel = $state(DEFAULT_ROUNDS_PER_LABEL);
+	let lastUsedRoundsPerLabel = $state(DEFAULT_ROUNDS_PER_LABEL);
+	let exporting = $state(false);
+	let exportError = $state('');
+	let exportMessage = $state('');
+	let hideChoices = $state(false);
+	let hideChoicesTimeout: ReturnType<typeof setTimeout> | null = null;
+	let autoPlayNext = $state(true);
+
+	const objectUrls: string[] = [];
+
+	function playChimeNotification() {
+		if (!browser) return Promise.resolve();
+		return new Promise<void>((resolve) => {
+			const audio = new Audio(chimeUrl);
+			audio.onended = () => resolve();
+			audio.onerror = () => resolve();
+			audio.play().catch(() => resolve());
+		});
+	}
+
+	function playTingConfirmation() {
+		if (!browser) return Promise.resolve();
+		return new Promise<void>((resolve) => {
+			const audio = new Audio(tingUrl);
+			audio.onended = () => resolve();
+			audio.onerror = () => resolve();
+			audio.play().catch(() => resolve());
+		});
+	}
+
+	function ensureRecordingBucket(label: Label) {
+		if (!recordings[label]) {
+			recordings = {
+				...recordings,
+				[label]: []
+			};
+		}
+	}
+
+	function updateLabelValue(id: Label, value: string) {
+		labelOptions = labelOptions.map((option) => (option.id === id ? { ...option, value } : option));
+	}
+
+	function addLabelOption() {
+		const existingIds = labelOptions.map((option) => option.id);
+		const newId = nextLabelId(existingIds);
+		labelOptions = [...labelOptions, { id: newId, value: '' }];
+		ensureRecordingBucket(newId);
+	}
+
+	function removeLabelOption(id: Label) {
+		if (labelOptions.length <= 2) return;
+		if (isRecording === id) {
+			stopRecording();
+		}
+		const bucket = recordings[id] ?? [];
+		bucket.forEach((rec) => {
+			URL.revokeObjectURL(rec.url);
+			const idx = objectUrls.indexOf(rec.url);
+			if (idx !== -1) {
+				objectUrls.splice(idx, 1);
+			}
+		});
+		const { [id]: _removed, ...rest } = recordings;
+		recordings = rest;
+		labelOptions = labelOptions.filter((option) => option.id !== id);
+	}
+
+	function clearRecordingsForLabel(label: Label) {
+		const bucket = recordings[label] ?? [];
+		if (!bucket.length) return;
+		bucket.forEach((rec) => {
+			URL.revokeObjectURL(rec.url);
+			const idx = objectUrls.indexOf(rec.url);
+			if (idx !== -1) {
+				objectUrls.splice(idx, 1);
+			}
+		});
+		recordings = {
+			...recordings,
+			[label]: []
+		};
+	}
+
+	const labelDisplayMap = $derived(
+		labelOptions.reduce<Record<Label, string>>((acc, option) => {
+			const trimmed = option.value.trim();
+			acc[option.id] = trimmed || fallbackLabelName(option.id);
+			return acc;
+		}, {})
+	);
+
+	function getDisplayLabel(id: Label) {
+		return labelDisplayMap[id] ?? fallbackLabelName(id);
+	}
+
+	function getGuessLabel(id: Label | typeof UNANSWERED_GUESS) {
+		return id === UNANSWERED_GUESS ? m.unanswered() : getDisplayLabel(id);
+	}
+	let readyForTest = $derived(
+		labelOptions.length >= 2 &&
+			labelOptions.every(
+				(option) => (recordings[option.id]?.length ?? 0) >= MIN_RECORDINGS_FOR_TEST
+			)
+	);
+	let normalizedRounds = $derived(clampRounds(roundsPerLabel));
+	let recommendedRecordings = $derived(Math.max(RECOMMENDED_RECORDINGS, normalizedRounds));
+	let totalPlannedRounds = $derived(normalizedRounds * Math.max(labelOptions.length, 0));
+	let totalRounds = $derived(testItems.length || totalPlannedRounds);
+	let progressText = $derived(
+		testActive && testItems.length
+			? m.progress_label(
+					{ current: currentTestIndex + 1, total: testItems.length },
+					{ locale: activeLocale }
+				)
+			: ''
+	);
+	let accuracy = $derived(
+		testComplete && testItems.length ? Math.round((score / testItems.length) * 100) : 0
+	);
+	let correctAnswers = $derived(score);
+	let incorrectAnswers = $derived(Math.max(totalRounds - score, 0));
+	let timerDisplay = $derived(isRecording ? formatDuration(recordingTimer) : '00:00');
+	let hasRecordings = $derived(
+		labelOptions.some((option) => (recordings[option.id]?.length ?? 0) > 0)
+	);
+	let hasUnexportedTests = $derived(completedTests.some((test) => !test.exported));
+	let canExport = $derived(hasRecordings && completedTests.length > 0);
+	let reactionStats = $derived(summarizeReactionTimes(testItems));
+	let confusionMatrix = $derived(
+		buildConfusionMatrix(
+			testItems,
+			labelOptions.map((option) => option.id)
+		)
+	);
+
+	function detectSupportedMimeType() {
+		if (
+			typeof MediaRecorder === 'undefined' ||
+			typeof MediaRecorder.isTypeSupported !== 'function'
+		) {
+			return null;
+		}
+		for (const type of RECORDER_MIME_CANDIDATES) {
+			if (MediaRecorder.isTypeSupported(type)) {
+				return type;
+			}
+		}
+		return null;
+	}
+
+	async function ensureRecorder() {
+		if (!browser) {
+			recordError = m.error_browser_only();
+			return false;
+		}
+		if (!navigator.mediaDevices?.getUserMedia) {
+			recordError = m.error_no_media();
+			return false;
+		}
+		if (!stream) {
+			stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+		}
+		if (!mediaRecorder) {
+			if (!recorderMimeType) {
+				recorderMimeType = detectSupportedMimeType();
+			}
+			const options = recorderMimeType ? { mimeType: recorderMimeType } : undefined;
+			try {
+				mediaRecorder = options ? new MediaRecorder(stream, options) : new MediaRecorder(stream);
+			} catch (err) {
+				recordError = m.error_unsupported_format(
+					{ message: (err as Error).message },
+					{ locale: activeLocale }
+				);
+				return false;
+			}
+			if (mediaRecorder.mimeType) {
+				recorderMimeType = mediaRecorder.mimeType;
+			}
+			mediaRecorder.ondataavailable = (event) => {
+				if (event.data.size > 0) {
+					audioChunks.push(event.data);
+				}
+			};
+			mediaRecorder.onstop = () => {
+				finalizeRecording();
+			};
+		}
+		return true;
+	}
+
+	function finalizeRecording() {
+		stopTimer();
+		if (!recordingTarget || audioChunks.length === 0) {
+			audioChunks = [];
+			isRecording = null;
+			recordingTarget = null;
+			return;
+		}
+
+		const fallbackType = audioChunks[0]?.type || 'audio/webm';
+		const mimeType = recorderMimeType ?? fallbackType;
+		const blob = new Blob(audioChunks, { type: mimeType });
+		const url = URL.createObjectURL(blob);
+		objectUrls.push(url);
+		ensureRecordingBucket(recordingTarget);
+		const existing = recordings[recordingTarget] ?? [];
+
+		const newRecording: Recording = {
+			id: createId(),
+			label: recordingTarget,
+			blob,
+			url,
+			index: existing.length + 1,
+			mimeType
+		};
+
+		recordings = {
+			...recordings,
+			[recordingTarget]: [...existing, newRecording]
+		};
+
+		audioChunks = [];
+		isRecording = null;
+		recordingTarget = null;
+	}
+
+	function stopTimer() {
+		if (timerInterval) {
+			clearInterval(timerInterval);
+			timerInterval = null;
+		}
+	}
+
+	function removeRecording(label: Label, id: string) {
+		const bucket = recordings[label] ?? [];
+		const updated = bucket.filter((rec) => {
+			if (rec.id === id) {
+				URL.revokeObjectURL(rec.url);
+				const idx = objectUrls.indexOf(rec.url);
+				if (idx !== -1) {
+					objectUrls.splice(idx, 1);
+				}
+			}
+			return rec.id !== id;
+		});
+
+		recordings = {
+			...recordings,
+			[label]: updated.map((rec, idx) => ({
+				...rec,
+				index: idx + 1
+			}))
+		};
+	}
+
+	async function startRecording(label: Label) {
+		recordError = '';
+		if (isRecording) {
+			recordError = m.error_active_recording();
+			return;
+		}
+		try {
+			const ok = await ensureRecorder();
+			if (!ok || !mediaRecorder) return;
+			audioChunks = [];
+			recordingTarget = label;
+			ensureRecordingBucket(label);
+			recordingTimer = 0;
+			stopTimer();
+			timerInterval = setInterval(() => {
+				recordingTimer += 100;
+			}, 100);
+			mediaRecorder.start();
+			isRecording = label;
+		} catch (err) {
+			recordError = m.error_start_recording(
+				{ message: (err as Error).message },
+				{ locale: activeLocale }
+			);
+		}
+	}
+
+	function stopRecording() {
+		if (mediaRecorder && mediaRecorder.state === 'recording') {
+			mediaRecorder.stop();
+		}
+		stopTimer();
+	}
+
+	async function startTest() {
+		if (startingTest) return;
+		startingTest = true;
+		testError = '';
+		if (!readyForTest) {
+			testError = m.error_min_recordings(
+				{ min: MIN_RECORDINGS_FOR_TEST },
+				{ locale: activeLocale }
+			);
+			startingTest = false;
+			return;
+		}
+		if (browser && hasUnexportedTests) {
+			const proceed = window.confirm(m.confirm_new_test());
+			if (!proceed) {
+				startingTest = false;
+				return;
+			}
+		}
+		hideChoices = false;
+		clearHideChoicesTimer();
+		const perLabel = normalizedRounds;
+		lastUsedRoundsPerLabel = perLabel;
+		currentLabelsSnapshot = cloneLabels(labelOptions);
+
+		const selections = labelOptions.flatMap((option) =>
+			buildSampleSet(recordings, option.id, perLabel)
+		);
+
+		const queue: TestRunItem[] = shuffle(selections).map((sample) => ({
+			id: createId(),
+			sample,
+			response: null,
+			correct: null,
+			lastPlayedAt: null,
+			reactionTimeMs: null
+		}));
+
+		testItems = queue;
+		currentTestIndex = 0;
+		score = 0;
+		testComplete = false;
+		currentSessionId = queue.length ? createId() : null;
+		if (queue.length) {
+			await playChimeNotification();
+			testActive = true;
+			if (autoPlayNext) {
+				playCurrentSample();
+			}
+		}
+		startingTest = false;
+	}
+
+	function playCurrentSample() {
+		const current = testItems[currentTestIndex];
+		if (!current) return;
+		currentAudio?.pause();
+		currentAudio = new Audio(current.sample.url);
+		samplePlaying = true;
+		currentAudio.onended = () => (samplePlaying = false);
+		currentAudio.onerror = () => (samplePlaying = false);
+		currentAudio.play().catch(() => {
+			samplePlaying = false;
+		});
+		const startedAt = Date.now();
+		testItems = testItems.map((item, index) =>
+			index === currentTestIndex ? { ...item, lastPlayedAt: startedAt } : item
+		);
+	}
+
+	async function submitGuess(label: Label) {
+		if (!testActive) return;
+		const current = testItems[currentTestIndex];
+		if (!current || current.response) return;
+
+		const correct = current.sample.label === label;
+		const reactionTimeMs =
+			typeof current.lastPlayedAt === 'number' ? Date.now() - current.lastPlayedAt : null;
+		const updated: TestRunItem = {
+			...current,
+			response: label,
+			correct,
+			reactionTimeMs
+		};
+		testItems = testItems.map((item, index) => (index === currentTestIndex ? updated : item));
+
+		if (correct) {
+			score += 1;
+		}
+
+		await playTingConfirmation();
+
+		if (currentTestIndex >= testItems.length - 1) {
+			testActive = false;
+			testComplete = true;
+			archiveCompletedTestSession();
+		} else {
+			currentTestIndex += 1;
+			if (autoPlayNext) {
+				playCurrentSample();
+			}
+		}
+		triggerChoiceTransition();
+	}
+
+	function confirmReset() {
+		if (!browser) {
+			resetAll();
+			return;
+		}
+		const confirmed = window.confirm(m.confirm_reset());
+		if (confirmed) {
+			resetAll();
+		}
+	}
+
+	function resetAll() {
+		recordings = labelOptions.reduce<RecordingsMap>((acc, option) => {
+			acc[option.id] = [];
+			return acc;
+		}, {});
+		recordError = '';
+		testError = '';
+		testItems = [];
+		currentTestIndex = 0;
+		score = 0;
+		testActive = false;
+		testComplete = false;
+		currentSessionId = null;
+		isRecording = null;
+		recordingTarget = null;
+		audioChunks = [];
+		recordingTimer = 0;
+		stopTimer();
+		lastUsedRoundsPerLabel = normalizedRounds;
+		objectUrls.forEach((url) => URL.revokeObjectURL(url));
+		objectUrls.length = 0;
+		exportError = '';
+		exportMessage = '';
+		hideChoices = false;
+		clearHideChoicesTimer();
+		completedTests = [];
+		currentLabelsSnapshot = null;
+	}
+
+	onDestroy(() => {
+		currentAudio?.pause();
+		objectUrls.forEach((url) => URL.revokeObjectURL(url));
+		stream?.getTracks().forEach((track) => track.stop());
+		stopTimer();
+		clearHideChoicesTimer();
+	});
+
+	function triggerChoiceTransition() {
+		hideChoices = true;
+		clearHideChoicesTimer();
+		hideChoicesTimeout = setTimeout(() => {
+			hideChoices = false;
+			hideChoicesTimeout = null;
+		}, 400);
+	}
+
+	function clearHideChoicesTimer() {
+		if (hideChoicesTimeout) {
+			clearTimeout(hideChoicesTimeout);
+			hideChoicesTimeout = null;
+		}
+	}
+
+	function archiveCompletedTestSession() {
+		if (!currentSessionId || !testItems.length || !currentLabelsSnapshot) return;
+		const alreadySaved = completedTests.some((session) => session.id === currentSessionId);
+		if (alreadySaved) return;
+		const total = testItems.length;
+		const labelCount = currentLabelsSnapshot.length || 1;
+		const executedRoundsPerLabel = total / labelCount;
+		const snapshot: CompletedTest = {
+			id: currentSessionId,
+			items: testItems.map((item) => ({ ...item })),
+			score,
+			totalRounds: total,
+			executedRoundsPerLabel,
+			requestedRoundsPerLabel: lastUsedRoundsPerLabel,
+			accuracy: total ? Math.round((score / total) * 100) : 0,
+			createdAt: new Date().toISOString(),
+			exported: false,
+			labels: cloneLabels(currentLabelsSnapshot),
+			locale: activeLocale
+		};
+		completedTests = [...completedTests, snapshot];
+		currentSessionId = null;
+		currentLabelsSnapshot = null;
+	}
+
+	function markSessionExported(sessionId: string) {
+		completedTests = completedTests.map((session) =>
+			session.id === sessionId ? { ...session, exported: true } : session
+		);
+	}
+
+	async function exportReport(sessionId?: string) {
+		exportError = '';
+		exportMessage = '';
+		const target = (() => {
+			if (!completedTests.length) return null;
+			if (sessionId) {
+				return completedTests.find((session) => session.id === sessionId) ?? null;
+			}
+			const pending = [...completedTests].reverse().find((session) => !session.exported);
+			return pending ?? completedTests[completedTests.length - 1];
+		})();
+		if (!target) {
+			exportError = m.no_export_records();
+			return;
+		}
+		exporting = true;
+		try {
+			const { blob } = await createReportZip({
+				recordings,
+				testItems: target.items,
+				labels: target.labels,
+				requestedRoundsPerLabel: target.requestedRoundsPerLabel,
+				executedRoundsPerLabel: target.executedRoundsPerLabel,
+				score: target.score,
+				locale: target.locale ?? activeLocale
+			});
+			const exportTimestamp = new Date(target.createdAt).getTime();
+			const filename = createReportFilename(target.labels, exportTimestamp);
+			downloadBlob(blob, filename);
+			markSessionExported(target.id);
+			exportMessage = m.export_success();
+		} catch (err) {
+			exportError = m.export_failure({ message: (err as Error).message });
+		} finally {
+			exporting = false;
+		}
+	}
+
+	function downloadBlob(blob: Blob, filename: string) {
+		const url = URL.createObjectURL(blob);
+		const anchor = document.createElement('a');
+		anchor.href = url;
+		anchor.download = filename;
+		anchor.style.display = 'none';
+		document.body.appendChild(anchor);
+		anchor.click();
+		document.body.removeChild(anchor);
+		URL.revokeObjectURL(url);
+	}
+
+	function terminateSession() {
+		if (!browser) return;
+		const confirmed = window.confirm(m.confirm_terminate());
+		if (!confirmed) return;
+		stopRecording();
+		currentAudio?.pause();
+		currentAudio = null;
+		stream?.getTracks().forEach((track) => track.stop());
+		stream = null;
+		mediaRecorder = null;
+
+		testItems = [];
+		currentTestIndex = 0;
+		score = 0;
+		testActive = false;
+		testComplete = false;
+		currentSessionId = null;
+		currentLabelsSnapshot = null;
+		hideChoices = false;
+		clearHideChoicesTimer();
+		testError = '';
+	}
+</script>
+
+<svelte:head>
+	<title>{m.app_title()}</title>
+</svelte:head>
+
+<div class="space-y-8 p-6">
+	<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+		<h1 class="text-3xl font-bold">{m.app_title()}</h1>
+	</div>
+
+	<section class="space-y-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+		<h2 class="text-xl font-semibold text-gray-900">{m.step_input_title()}</h2>
+		<div class="grid gap-4 md:grid-cols-2">
+			{#each labelOptions as option, index (option.id)}
+				<div class="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-gray-50/70 p-4">
+					<div class="flex items-center justify-between gap-3">
+						<div class="flex items-center gap-2 text-sm font-semibold text-gray-700">
+							<IconTag class="h-4 w-4 text-blue-600" aria-hidden="true" />
+							<span>{m.label_word_generic({ id: option.id })}</span>
+						</div>
+						{#if labelOptions.length > 2}
+							<button
+								type="button"
+								onclick={() => removeLabelOption(option.id)}
+								class="text-sm font-semibold text-gray-400 transition hover:text-red-600"
+								aria-label={`Remove option ${labelDisplayMap[option.id]}`}
+							>
+								<IconDelete class="h-4 w-4" aria-hidden="true" />
+							</button>
+						{/if}
+					</div>
+					<input
+						type="text"
+						value={option.value}
+						oninput={(event) =>
+							updateLabelValue(option.id, (event.currentTarget as HTMLInputElement).value)}
+						placeholder={index === 0
+							? m.placeholder_word_a()
+							: index === 1
+								? m.placeholder_word_b()
+								: m.placeholder_word_b()}
+						class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+					/>
+				</div>
+			{/each}
+		</div>
+		<div class="flex justify-end">
+			<button
+				onclick={addLabelOption}
+				class="flex items-center gap-2 rounded-xl border border-dashed border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:border-blue-500 hover:text-blue-600"
+				type="button"
+			>
+				<IconPlus class="h-4 w-4" aria-hidden="true" />
+				{m.add_word_button()}
+			</button>
+		</div>
+		<p class="text-sm text-gray-600">{m.step_input_hint()}</p>
+	</section>
+
+	<section class="space-y-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+		<div class="flex justify-between">
+			<h2 class="text-xl font-semibold text-gray-900">
+				{m.step_record_title({ recommended: recommendedRecordings })}
+			</h2>
+			<button
+				onclick={() => confirmReset()}
+				class={`${dangerButtonClasses} text-sm`}
+				aria-label={m.clear_recordings()}
+			>
+				<IconDelete class="h-4 w-4" aria-hidden="true" />
+				<span>{m.clear_recordings()}</span>
+			</button>
+		</div>
+		{#if recordError}
+			<p
+				class="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700"
+			>
+				{recordError}
+			</p>
+		{/if}
+		<div class="grid gap-4 lg:grid-cols-2">
+			{#each labelOptions as option (option.id)}
+				{@const labelText = labelDisplayMap[option.id]}
+				{@const items = recordings[option.id] ?? []}
+				{@const isActive = isRecording === option.id}
+				<div
+					class={`flex flex-col gap-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition ${
+						isActive ? 'ring-2 ring-blue-200' : ''
+					}`}
+				>
+					<div class="flex items-center justify-between gap-3 border-b border-gray-100 pb-3">
+						<div>
+							<p class="text-lg font-semibold text-gray-900">{labelText}</p>
+							<p class="text-xs text-gray-500">
+								{m.recordings_summary(
+									{ count: items.length, recommended: recommendedRecordings },
+									{ locale: activeLocale }
+								)}
+							</p>
+						</div>
+						<span class="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600">
+							{items.length}<span class="text-gray-400">/{recommendedRecordings}</span>
+						</span>
+					</div>
+					<div class="flex flex-wrap items-center justify-between gap-2">
+						<button
+							type="button"
+							onclick={() => (isActive ? stopRecording() : startRecording(option.id))}
+							disabled={!!isRecording && !isActive}
+							class={`flex min-w-[170px] items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50 ${
+								isActive
+									? 'bg-gray-700 enabled:hover:bg-gray-800'
+									: 'bg-blue-600 enabled:hover:bg-blue-700'
+							}`}
+						>
+							{#if isActive}
+								<IconStopCircle class="h-5 w-5" aria-hidden="true" />
+								<span>{m.stop_recording()}</span>
+							{:else}
+								<IconMicrophone class="h-5 w-5" aria-hidden="true" />
+								<span>{m.start_recording()}</span>
+							{/if}
+						</button>
+						{#if items.length}
+							<button
+								onclick={() => clearRecordingsForLabel(option.id)}
+								class={`${dangerButtonClasses} text-sm`}
+								type="button"
+							>
+								<IconDelete class="h-4 w-4" aria-hidden="true" />
+								<span>{m.clear_recordings()}</span>
+							</button>
+						{/if}
+					</div>
+					{#if isActive}
+						<p class="rounded-lg bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700">
+							{m.recording_status(
+								{ label: labelText, timer: timerDisplay },
+								{ locale: activeLocale }
+							)}
+						</p>
+					{/if}
+					{#if !items.length}
+						<p class="rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-500">
+							{m.recordings_summary(
+								{ count: items.length, recommended: recommendedRecordings },
+								{ locale: activeLocale }
+							)}
+						</p>
+					{:else}
+						<ul class="space-y-2">
+							{#each items as rec}
+								<li
+									class="flex w-full items-center justify-between gap-3 rounded-xl border border-gray-100 bg-gray-50/70 px-3 py-2 text-sm"
+								>
+									<span class="font-medium whitespace-nowrap text-gray-800">
+										{m.recording_iteration({ index: rec.index })}
+									</span>
+									<audio controls src={rec.url} class="w-full"></audio>
+									<button
+										onclick={() => removeRecording(option.id, rec.id)}
+										class="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-semibold whitespace-nowrap text-gray-700 shadow-sm hover:text-red-600"
+									>
+										<IconRefresh class="h-4 w-4" aria-hidden="true" />
+										<span>{m.re_record()}</span>
+									</button>
+								</li>
+							{/each}
+						</ul>
+					{/if}
+				</div>
+			{/each}
+		</div>
+	</section>
+
+	<section class="space-y-5 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+		<h2 class="text-xl font-semibold text-gray-900">{m.step_test_title()}</h2>
+		<p class="text-sm text-gray-600">
+			{m.step_test_hint({ recommended: recommendedRecordings, min: MIN_RECORDINGS_FOR_TEST })}
+		</p>
+		<div class="space-y-3">
+			<label class="space-y-2 font-medium">
+				<span>{m.rounds_label()}</span>
+				<input
+					type="number"
+					min={MIN_ROUNDS_PER_LABEL}
+					max={MAX_ROUNDS_PER_LABEL}
+					bind:value={roundsPerLabel}
+					class="w-32 rounded-lg border border-gray-300 px-3 py-2 text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+				/>
+			</label>
+			<p class="text-sm text-gray-600">
+				{m.rounds_summary({ total: totalPlannedRounds })}
+			</p>
+		</div>
+		<div class="flex flex-wrap items-center gap-4">
+			<label class="inline-flex items-center gap-2 font-medium">
+				<input
+					type="checkbox"
+					bind:checked={autoPlayNext}
+					class="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+				/>
+				<span>{m.auto_play_label()}</span>
+			</label>
+		</div>
+		{#if testError}
+			<p class="font-semibold text-red-600">{testError}</p>
+		{/if}
+		{#if !testActive}
+			<button
+				onclick={startTest}
+				disabled={!readyForTest || startingTest}
+				class="flex w-full items-center justify-center gap-3 rounded-xl bg-blue-600 px-4 py-3 text-lg font-semibold text-white enabled:hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+			>
+				<IconPlayCircle class="h-6 w-6" aria-hidden="true" />
+				<span>{startingTest ? 'Starting…' : m.start_test()}</span>
+			</button>
+		{/if}
+
+		{#if testActive}
+			<div class="space-y-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
+				<div class="flex items-center justify-between">
+					<p class="text-base font-semibold text-gray-800">{progressText}</p>
+
+					<button onclick={terminateSession} class={`${dangerButtonClasses} rounded-lg text-base`}>
+						<IconPower class="h-5 w-5" aria-hidden="true" />
+						<span>{m.terminate_test()}</span>
+					</button>
+				</div>
+				<button
+					onclick={playCurrentSample}
+					class="flex w-full items-center justify-center gap-3 rounded-lg bg-green-600 px-4 py-2 font-semibold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+					disabled={samplePlaying}
+				>
+					<IconHeadphones class="h-5 w-5" aria-hidden="true" />
+					<span>{samplePlaying ? m.playing_prompt() : m.play_prompt()}</span>
+				</button>
+				<div
+					class={`grid transform gap-3 transition ${hideChoices ? 'pointer-events-none scale-95 opacity-0' : 'opacity-100'} sm:grid-cols-2`}
+				>
+					{#each labelOptions as option (option.id)}
+						<button
+							class="choice rounded-xl bg-blue-600 px-4 py-3 text-lg font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+							onclick={() => submitGuess(option.id)}
+							disabled={testItems[currentTestIndex]?.response !== null}
+						>
+							{labelDisplayMap[option.id]}
+						</button>
+					{/each}
+				</div>
+			</div>
+		{/if}
+
+		{#if reactionStats.totalAnswered}
+			<div class="space-y-3 rounded-xl border border-blue-100 bg-blue-50/70 p-4">
+				<p class="text-base font-semibold text-gray-900">{m.reaction_section_title()}</p>
+				<div class="grid gap-3 sm:grid-cols-2">
+					<div class="rounded-lg bg-white/60 px-3 py-2">
+						<p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">
+							{m.reaction_stat_last()}
+						</p>
+						<p class="text-lg font-semibold text-gray-900">
+							{formatReactionTime(reactionStats.last)}
+						</p>
+					</div>
+					<div class="rounded-lg bg-white/60 px-3 py-2">
+						<p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">
+							{m.reaction_stat_overall()}
+						</p>
+						<p class="text-lg font-semibold text-gray-900">
+							{formatReactionTime(reactionStats.overall)}
+						</p>
+					</div>
+					<div class="rounded-lg bg-white/60 px-3 py-2">
+						<p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">
+							{m.reaction_stat_correct()}
+						</p>
+						<p class="text-lg font-semibold text-gray-900">
+							{formatReactionTime(reactionStats.correct)}
+						</p>
+					</div>
+					<div class="rounded-lg bg-white/60 px-3 py-2">
+						<p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">
+							{m.reaction_stat_incorrect()}
+						</p>
+						<p class="text-lg font-semibold text-gray-900">
+							{formatReactionTime(reactionStats.incorrect)}
+						</p>
+					</div>
+				</div>
+			</div>
+		{/if}
+
+		{#if testComplete}
+			<div class="space-y-3 rounded-xl border border-gray-200 p-4">
+				<p class="text-lg font-semibold">
+					{m.score_summary({ score, total: totalRounds, accuracy })}
+				</p>
+				<p class="text-sm text-gray-700">
+					{m.correct_wrong_summary(
+						{ correct: correctAnswers, incorrect: incorrectAnswers },
+						{ locale: activeLocale }
+					)}
+				</p>
+				<ol class="space-y-2 text-sm text-gray-700">
+					{#each testItems as item, index}
+						{@const correctLabel = labelDisplayMap[item.sample.label] ?? item.sample.label}
+						{@const answerLabel = item.response
+							? (labelDisplayMap[item.response] ?? item.response)
+							: m.unanswered()}
+						<li
+							class={`flex items-center justify-between rounded-lg px-3 py-2 ${
+								item.correct === true
+									? 'bg-green-50'
+									: item.correct === false
+										? 'bg-red-50'
+										: 'bg-gray-50'
+							}`}
+						>
+							<div class="flex flex-col gap-1">
+								<span>
+									{m.question_feedback(
+										{ index: index + 1, correct: correctLabel, answer: answerLabel },
+										{ locale: activeLocale }
+									)}
+								</span>
+								<span class="text-xs text-gray-500">
+									{m.reaction_value_label()}: {formatReactionTime(item.reactionTimeMs)}
+								</span>
+							</div>
+							<span class={item.correct ? 'text-green-600' : 'text-red-600'}>
+								{item.correct ? '✔' : '✘'}
+							</span>
+						</li>
+					{/each}
+				</ol>
+				{#if confusionMatrix.actual.length && confusionMatrix.guessed.length}
+					<div class="space-y-2 rounded-xl border border-purple-100 bg-purple-50/70 p-3">
+						<p class="text-sm font-semibold text-gray-900">{m.mistake_crosstab_title()}</p>
+						<p class="text-xs text-gray-600">
+							{m.mistake_crosstab_hint()}
+						</p>
+						<div class="overflow-auto">
+							<table class="min-w-full border-collapse text-xs">
+								<thead>
+									<tr>
+										<th class="bg-white px-3 py-2 text-left font-semibold text-gray-600">
+											{m.mistake_crosstab_header()}
+										</th>
+										{#each confusionMatrix.guessed as guess}
+											<th class="bg-gray-50 px-3 py-2 text-center font-semibold text-gray-800">
+												{getGuessLabel(guess)}
+											</th>
+										{/each}
+									</tr>
+								</thead>
+								<tbody>
+									{#each confusionMatrix.actual as actualLabel}
+										<tr>
+											<th class="bg-white px-3 py-2 text-left font-semibold text-gray-800">
+												{getDisplayLabel(actualLabel)}
+											</th>
+											{#each confusionMatrix.guessed as guess}
+												{@const count = confusionMatrix.counts[actualLabel]?.[guess] ?? 0}
+												<td
+													class={`border border-gray-200 px-3 py-2 text-center ${
+														actualLabel === guess
+															? 'bg-green-50 font-semibold text-green-700'
+															: count
+																? 'bg-red-50 text-red-700'
+																: 'text-gray-600'
+													}`}
+												>
+													{count}
+												</td>
+											{/each}
+										</tr>
+									{/each}
+								</tbody>
+							</table>
+						</div>
+					</div>
+				{/if}
+			</div>
+		{/if}
+
+		<div class="space-y-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
+			<div class="space-y-2">
+				<button
+					onclick={() => exportReport()}
+					disabled={!canExport || exporting}
+					class="flex w-full items-center justify-center gap-2 rounded-lg bg-gray-800 px-4 py-2 font-semibold text-white enabled:hover:bg-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
+				>
+					<IconExport class="h-5 w-5" aria-hidden="true" />
+					<span>{exporting ? m.export_btn_loading() : m.export_btn_ready()}</span>
+				</button>
+				<p class="text-sm text-gray-600">
+					{m.export_info()}
+				</p>
+			</div>
+			{#if !completedTests.length}
+				<p class="text-sm text-gray-500">{m.no_export_records()}</p>
+			{:else}
+				<div class="space-y-3">
+					<h3 class="text-base font-semibold">
+						{m.completed_tests_title()}
+					</h3>
+					<ul class="space-y-2">
+						{#each [...completedTests].slice().reverse() as session}
+							{@const sessionNames = session.labels.map(
+								(label) => label.value.trim() || fallbackLabelName(label.id)
+							)}
+							{@const sessionReaction = summarizeReactionTimes(session.items)}
+							<li
+								class="flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between"
+							>
+								<div>
+									<p class="text-sm font-semibold">{sessionNames.join(' / ')}</p>
+									<p class="text-xs text-gray-600">
+										{m.session_meta(
+											{
+												timestamp: new Date(session.createdAt).toLocaleString(),
+												score: session.score,
+												total: session.totalRounds,
+												accuracy: session.accuracy
+											},
+											{ locale: activeLocale }
+										)}
+									</p>
+									<p class="text-xs text-gray-600">
+										{m.correct_wrong_summary(
+											{
+												correct: session.score,
+												incorrect: Math.max(session.totalRounds - session.score, 0)
+											},
+											{ locale: activeLocale }
+										)}
+									</p>
+									<p class="text-xs text-gray-600">
+										{m.reaction_avg_label()}: {formatReactionTime(sessionReaction.overall)} · ✔
+										{formatReactionTime(sessionReaction.correct)} · ✘
+										{formatReactionTime(sessionReaction.incorrect)}
+									</p>
+								</div>
+								<div class="flex items-center gap-2">
+									{#if session.exported}
+										<span class="text-xs font-semibold text-green-600">
+											{m.exported_badge()}
+										</span>
+									{/if}
+									<button
+										onclick={() => exportReport(session.id)}
+										disabled={exporting}
+										class="flex items-center gap-2 rounded-lg bg-gray-800 px-3 py-2 text-sm font-semibold text-white enabled:hover:bg-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
+									>
+										<IconExport class="h-4 w-4" aria-hidden="true" />
+										<span>{m.export_button()}</span>
+									</button>
+								</div>
+							</li>
+						{/each}
+					</ul>
+				</div>
+			{/if}
+			{#if exportError}
+				<p class="text-sm font-semibold text-red-600">{exportError}</p>
+			{/if}
+			{#if exportMessage}
+				<p class="text-sm font-semibold text-green-600">{exportMessage}</p>
+			{/if}
+		</div>
+	</section>
+</div>
