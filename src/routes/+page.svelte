@@ -808,12 +808,12 @@
 							{items.length}<span class="text-gray-400">/{RECOMMENDED_RECORDINGS}</span>
 						</span>
 					</div>
-					<div class="flex flex-wrap items-center gap-2">
+					<div class="flex flex-wrap items-center justify-between gap-2">
 						<button
 							type="button"
 							onclick={() => (isActive ? stopRecording() : startRecording(option.id))}
 							disabled={(!isActive && !option.value.trim()) || (!!isRecording && !isActive)}
-							class={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50 ${
+							class={`flex min-w-[170px] items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50 ${
 								isActive
 									? 'bg-gray-700 enabled:hover:bg-gray-800'
 									: 'bg-blue-600 enabled:hover:bg-blue-700'
@@ -828,11 +828,11 @@
 							{/if}
 						</button>
 						{#if items.length}
-						<button
-							onclick={() => clearRecordingsForLabel(option.id)}
-							class={`${dangerButtonClasses} text-sm`}
-							type="button"
-						>
+							<button
+								onclick={() => clearRecordingsForLabel(option.id)}
+								class={`${dangerButtonClasses} text-sm`}
+								type="button"
+							>
 								<IconDelete class="h-4 w-4" aria-hidden="true" />
 								<span>{m.clear_recordings()}</span>
 							</button>
@@ -926,10 +926,7 @@
 				<div class="flex items-center justify-between">
 					<p class="text-base font-semibold text-gray-800">{progressText}</p>
 
-					<button
-						onclick={terminateSession}
-						class={`${dangerButtonClasses} rounded-lg text-base`}
-					>
+					<button onclick={terminateSession} class={`${dangerButtonClasses} rounded-lg text-base`}>
 						<IconPower class="h-5 w-5" aria-hidden="true" />
 						<span>{m.terminate_test()}</span>
 					</button>
