@@ -470,13 +470,16 @@
 			reactionTimeMs: null
 		}));
 
-		testItems = queue;
-		currentTestIndex = 0;
-		score = 0;
-		testActive = queue.length > 0;
-		testComplete = false;
-		currentSessionId = queue.length ? createId() : null;
-	}
+			testItems = queue;
+			currentTestIndex = 0;
+			score = 0;
+			testActive = queue.length > 0;
+			testComplete = false;
+			currentSessionId = queue.length ? createId() : null;
+			if (testActive && autoPlayNext) {
+				playCurrentSample();
+			}
+		}
 
 	function playCurrentSample() {
 		const current = testItems[currentTestIndex];
