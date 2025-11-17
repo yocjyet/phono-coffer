@@ -14,6 +14,7 @@
 	import IconDelete from '~icons/mdi/delete-outline';
 	import IconPlus from '~icons/mdi/plus';
 	import IconTag from '~icons/mdi/tag-outline';
+	import chimeUrl from '$lib/assets/chime.mp3';
 	import {
 		buildSampleSet,
 		clampRounds,
@@ -173,6 +174,14 @@
 	let autoPlayNext = $state(true);
 
 	const objectUrls: string[] = [];
+
+	function playChimeNotification() {
+		if (!browser) return;
+		const audio = new Audio(chimeUrl);
+		audio.play().catch(() => {
+			/* ignore autoplay issues */
+		});
+	}
 
 	function ensureRecordingBucket(label: Label) {
 		if (!recordings[label]) {
@@ -461,14 +470,14 @@
 			buildSampleSet(recordings, option.id, perLabel)
 		);
 
-		const queue: TestRunItem[] = shuffle(selections).map((sample) => ({
-			id: createId(),
-			sample,
-			response: null,
-			correct: null,
-			lastPlayedAt: null,
-			reactionTimeMs: null
-		}));
+			const queue: TestRunItem[] = shuffle(selections).map((sample) => ({
+				id: createId(),
+				sample,
+				response: null,
+				correct: null,
+				lastPlayedAt: null,
+				reactionTimeMs: null
+			}));
 
 			testItems = queue;
 			currentTestIndex = 0;
@@ -477,6 +486,7 @@
 			testComplete = false;
 			currentSessionId = queue.length ? createId() : null;
 			if (testActive && autoPlayNext) {
+				playChimeNotification();
 				playCurrentSample();
 			}
 		}
