@@ -713,7 +713,17 @@
 		stream?.getTracks().forEach((track) => track.stop());
 		stream = null;
 		mediaRecorder = null;
-		resetAll();
+
+		testItems = [];
+		currentTestIndex = 0;
+		score = 0;
+		testActive = false;
+		testComplete = false;
+		currentSessionId = null;
+		currentLabelsSnapshot = null;
+		hideChoices = false;
+		clearHideChoicesTimer();
+		testError = '';
 	}
 </script>
 
