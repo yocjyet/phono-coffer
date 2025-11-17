@@ -162,6 +162,7 @@
 	let testActive = $state(false);
 	let testComplete = $state(false);
 	let startingTest = $state(false);
+	let samplePlaying = $state(false);
 	let currentSessionId = $state<string | null>(null);
 	let completedTests = $state<CompletedTest[]>([]);
 	let currentLabelsSnapshot = $state<LabelDefinition[] | null>(null);
@@ -516,7 +517,12 @@
 		if (!current) return;
 		currentAudio?.pause();
 		currentAudio = new Audio(current.sample.url);
-		currentAudio.play();
+		samplePlaying = true;
+		currentAudio.onended = () => (samplePlaying = false);
+		currentAudio.onerror = () => (samplePlaying = false);
+		currentAudio.play().catch(() => {
+			samplePlaying = false;
+		});
 		const startedAt = Date.now();
 		testItems = testItems.map((item, index) =>
 			index === currentTestIndex ? { ...item, lastPlayedAt: startedAt } : item
@@ -975,10 +981,11 @@
 				</div>
 				<button
 					onclick={playCurrentSample}
-					class="flex w-full items-center justify-center gap-3 rounded-lg bg-green-600 px-4 py-2 font-semibold text-white hover:bg-green-700"
+					class="flex w-full items-center justify-center gap-3 rounded-lg bg-green-600 px-4 py-2 font-semibold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+					disabled={samplePlaying}
 				>
 					<IconHeadphones class="h-5 w-5" aria-hidden="true" />
-					<span>{m.play_prompt()}</span>
+					<span>{samplePlaying ? m.playing_prompt() : m.play_prompt()}</span>
 				</button>
 				<div
 					class={`grid transform gap-3 transition ${hideChoices ? 'pointer-events-none scale-95 opacity-0' : 'opacity-100'} sm:grid-cols-2`}

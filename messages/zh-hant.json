@@ -58,5 +58,6 @@
 	"reaction_avg_label": "平均反應",
 	"mistake_crosstab_title": "錯誤交叉表",
 	"mistake_crosstab_hint": "列代表實際提示，欄代表作答。對角線為正確，其餘顯示誤判。",
-	"mistake_crosstab_header": "實際 \\\\ 預測"
+	"mistake_crosstab_header": "實際 \\\\ 預測",
+	"playing_prompt": "正在播放…"
 }

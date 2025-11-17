@@ -58,5 +58,6 @@
 	"reaction_avg_label": "反応平均",
 	"mistake_crosstab_title": "誤りクロステーブル",
 	"mistake_crosstab_hint": "行が提示語、列が回答です。対角線は正解、それ以外は誤答傾向を示します。",
-	"mistake_crosstab_header": "実際 \\\\ 予測"
+	"mistake_crosstab_header": "実際 \\\\ 予測",
+	"playing_prompt": "再生中…"
 }

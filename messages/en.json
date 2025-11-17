@@ -58,5 +58,6 @@
 	"reaction_avg_label": "Reaction avg",
 	"mistake_crosstab_title": "Mistake cross-tab",
 	"mistake_crosstab_hint": "Rows = actual prompt, columns = your guess. Diagonals show correct picks; other counts highlight mistakes.",
-	"mistake_crosstab_header": "Actual \\\\ Predicted"
+	"mistake_crosstab_header": "Actual \\\\ Predicted",
+	"playing_prompt": "Playing…"
 }
