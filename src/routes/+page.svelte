@@ -102,6 +102,8 @@
 	};
 
 	const localeList = locales as readonly Locale[];
+	const dangerButtonClasses =
+		'inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 font-semibold text-white transition hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 disabled:cursor-not-allowed disabled:opacity-60';
 
 	const initialLocale = (() => {
 		let fallback = localeList[0];
@@ -275,7 +277,12 @@
 	let hasUnexportedTests = $derived(completedTests.some((test) => !test.exported));
 	let canExport = $derived(hasRecordings && completedTests.length > 0);
 	let reactionStats = $derived(summarizeReactionTimes(testItems));
-	let confusionMatrix = $derived(buildConfusionMatrix(testItems, labelOptions.map((option) => option.id)));
+	let confusionMatrix = $derived(
+		buildConfusionMatrix(
+			testItems,
+			labelOptions.map((option) => option.id)
+		)
+	);
 
 	function detectSupportedMimeType() {
 		if (
@@ -759,7 +766,17 @@
 	</section>
 
 	<section class="space-y-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-		<h2 class="text-xl font-semibold text-gray-900">{m.step_record_title()}</h2>
+		<div class="flex justify-between">
+			<h2 class="text-xl font-semibold text-gray-900">{m.step_record_title()}</h2>
+			<button
+				onclick={() => confirmReset()}
+				class={`${dangerButtonClasses} text-sm`}
+				aria-label={m.clear_recordings()}
+			>
+				<IconDelete class="h-4 w-4" aria-hidden="true" />
+				<span>{m.clear_recordings()}</span>
+			</button>
+		</div>
 		{#if recordError}
 			<p
 				class="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700"
@@ -811,11 +828,11 @@
 							{/if}
 						</button>
 						{#if items.length}
-							<button
-								onclick={() => clearRecordingsForLabel(option.id)}
-								class="flex items-center gap-2 rounded-xl border border-red-100 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
-								type="button"
-							>
+						<button
+							onclick={() => clearRecordingsForLabel(option.id)}
+							class={`${dangerButtonClasses} text-sm`}
+							type="button"
+						>
 								<IconDelete class="h-4 w-4" aria-hidden="true" />
 								<span>{m.clear_recordings()}</span>
 							</button>
@@ -861,15 +878,6 @@
 					{/if}
 				</div>
 			{/each}
-		</div>
-		<div class="flex justify-end">
-			<button
-				onclick={() => confirmReset()}
-				class="flex items-center gap-2 rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:border-red-400 hover:text-red-600"
-			>
-				<IconDelete class="h-4 w-4" aria-hidden="true" />
-				<span>{m.clear_recordings()}</span>
-			</button>
 		</div>
 	</section>
 
@@ -922,7 +930,7 @@
 
 					<button
 						onclick={terminateSession}
-						class="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 font-semibold text-white hover:bg-red-700"
+						class={`${dangerButtonClasses} rounded-lg text-base`}
 					>
 						<IconPower class="h-5 w-5" aria-hidden="true" />
 						<span>{m.terminate_test()}</span>
@@ -956,7 +964,7 @@
 				<p class="text-base font-semibold text-gray-900">{m.reaction_section_title()}</p>
 				<div class="grid gap-3 sm:grid-cols-2">
 					<div class="rounded-lg bg-white/60 px-3 py-2">
-						<p class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+						<p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">
 							{m.reaction_stat_last()}
 						</p>
 						<p class="text-lg font-semibold text-gray-900">
@@ -964,7 +972,7 @@
 						</p>
 					</div>
 					<div class="rounded-lg bg-white/60 px-3 py-2">
-						<p class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+						<p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">
 							{m.reaction_stat_overall()}
 						</p>
 						<p class="text-lg font-semibold text-gray-900">
@@ -972,7 +980,7 @@
 						</p>
 					</div>
 					<div class="rounded-lg bg-white/60 px-3 py-2">
-						<p class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+						<p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">
 							{m.reaction_stat_correct()}
 						</p>
 						<p class="text-lg font-semibold text-gray-900">
@@ -980,7 +988,7 @@
 						</p>
 					</div>
 					<div class="rounded-lg bg-white/60 px-3 py-2">
-						<p class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+						<p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">
 							{m.reaction_stat_incorrect()}
 						</p>
 						<p class="text-lg font-semibold text-gray-900">
@@ -1098,43 +1106,43 @@
 						{m.completed_tests_title()}
 					</h3>
 					<ul class="space-y-2">
-				{#each [...completedTests].slice().reverse() as session}
-					{@const sessionNames = session.labels.map(
-						(label) => label.value.trim() || fallbackLabelName(label.id)
-					)}
-				{@const sessionReaction = summarizeReactionTimes(session.items)}
-					<li
-						class="flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between"
-					>
-						<div>
-							<p class="text-sm font-semibold">{sessionNames.join(' / ')}</p>
-							<p class="text-xs text-gray-600">
-								{m.session_meta(
-									{
-										timestamp: new Date(session.createdAt).toLocaleString(),
-										score: session.score,
-										total: session.totalRounds,
-										accuracy: session.accuracy
-									},
-									{ locale: activeLocale }
-								)}
-							</p>
-							<p class="text-xs text-gray-600">
-								{m.correct_wrong_summary(
-									{
-										correct: session.score,
-										incorrect: Math.max(session.totalRounds - session.score, 0)
-									},
-									{ locale: activeLocale }
-								)}
-							</p>
-							<p class="text-xs text-gray-600">
-								{m.reaction_avg_label()}: {formatReactionTime(sessionReaction.overall)} · ✔
-								{formatReactionTime(sessionReaction.correct)} · ✘
-								{formatReactionTime(sessionReaction.incorrect)}
-							</p>
-						</div>
-						<div class="flex items-center gap-2">
+						{#each [...completedTests].slice().reverse() as session}
+							{@const sessionNames = session.labels.map(
+								(label) => label.value.trim() || fallbackLabelName(label.id)
+							)}
+							{@const sessionReaction = summarizeReactionTimes(session.items)}
+							<li
+								class="flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between"
+							>
+								<div>
+									<p class="text-sm font-semibold">{sessionNames.join(' / ')}</p>
+									<p class="text-xs text-gray-600">
+										{m.session_meta(
+											{
+												timestamp: new Date(session.createdAt).toLocaleString(),
+												score: session.score,
+												total: session.totalRounds,
+												accuracy: session.accuracy
+											},
+											{ locale: activeLocale }
+										)}
+									</p>
+									<p class="text-xs text-gray-600">
+										{m.correct_wrong_summary(
+											{
+												correct: session.score,
+												incorrect: Math.max(session.totalRounds - session.score, 0)
+											},
+											{ locale: activeLocale }
+										)}
+									</p>
+									<p class="text-xs text-gray-600">
+										{m.reaction_avg_label()}: {formatReactionTime(sessionReaction.overall)} · ✔
+										{formatReactionTime(sessionReaction.correct)} · ✘
+										{formatReactionTime(sessionReaction.incorrect)}
+									</p>
+								</div>
+								<div class="flex items-center gap-2">
 									{#if session.exported}
 										<span class="text-xs font-semibold text-green-600">
 											{m.exported_badge()}
