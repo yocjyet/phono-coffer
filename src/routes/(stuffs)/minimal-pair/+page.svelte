@@ -741,15 +741,7 @@
 	}
 </script>
 
-<svelte:head>
-	<title>{m.app_title()}</title>
-</svelte:head>
-
 <div class="space-y-8 p-6">
-	<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-		<h1 class="text-3xl font-bold">{m.app_title()}</h1>
-	</div>
-
 	<section class="space-y-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
 		<h2 class="text-xl font-semibold text-gray-900">{m.step_input_title()}</h2>
 		<div class="grid gap-4 md:grid-cols-2">

@@ -3,17 +3,27 @@
 	import { getLocale, locales, setLocale } from '$lib/paraglide/runtime';
 	import { m } from '$lib/paraglide/messages';
 	import IconTranslate from '~icons/mdi/translate-variant';
+	import { page } from '$app/state';
 
 	type Locale = (typeof locales)[number];
 </script>
 
-<header class="flex items-center justify-between px-6 py-4 text-sm text-gray-500">
-	<a href="/" class="text-sm font-semibold tracking-wide text-blue-600 uppercase"
-		>PhonoCoffer 韻匣</a
-	>
+<svelte:head>
+	<title>{page.data.metadata.title} | PhonoCoffer 韻匣</title>
+</svelte:head>
+
+<header
+	class="@container relative flex flex-col gap-4 border-b border-gray-100 bg-white/80 py-4 pr-28 pl-6 text-sm text-gray-500 shadow-sm @[md]:gap-6 @[md]:pr-40"
+>
+	<div class="flex flex-col gap-2 @[md]:flex-row @[md]:items-center @[md]:gap-3">
+		<a href="/" class="text-sm font-semibold tracking-wide text-blue-600 uppercase"
+			>PhonoCoffer 韻匣</a
+		>
+		<h1 class="text-2xl font-bold text-black @[md]:text-3xl">{page.data.metadata.title}</h1>
+	</div>
 
 	<label
-		class="flex flex-col gap-1 text-sm font-semibold text-gray-700 sm:flex-row sm:items-center sm:gap-3"
+		class="absolute top-4 right-6 flex h-full items-center gap-3 text-sm font-semibold text-gray-700"
 	>
 		<span class="flex items-center gap-2">
 			<IconTranslate class="h-4 w-4 text-blue-600" aria-hidden="true" />
