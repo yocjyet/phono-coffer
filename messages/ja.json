@@ -16,7 +16,7 @@
 	"recording_iteration": "{index} テイク目",
 	"re_record": "録り直し",
 	"clear_recordings": "録音をすべて削除",
-	"step_test_title": "ランダムテスト（各単語5問）",
+	"step_test_title": "ランダムテスト",
 	"step_test_hint": "各単語{recommended}件以上の録音を推奨しますが、開始には各{min}件で十分です。",
 	"rounds_label": "各単語の出題回数（初期値 5）",
 	"rounds_summary": "合計 {total} 問を出題します。録音が不足している場合は、A/B のバランスを取るためにサンプルを再利用します。",

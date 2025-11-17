@@ -16,7 +16,7 @@
 	"recording_iteration": "Take {index}",
 	"re_record": "Re-record",
 	"clear_recordings": "Clear recordings",
-	"step_test_title": "Randomized test (5 rounds per word)",
+	"step_test_title": "Randomized test",
 	"step_test_hint": "At least {recommended} recordings per word are recommended; only {min} per word is required to start.",
 	"rounds_label": "Rounds per word (default 5)",
 	"rounds_summary": "You will answer {total} rounds. If recordings are insufficient, samples repeat to keep A/B balanced.",
