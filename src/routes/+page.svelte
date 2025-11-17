@@ -255,8 +255,7 @@
 	let readyForTest = $derived(
 		labelOptions.length >= 2 &&
 			labelOptions.every(
-				(option) =>
-					option.value.trim() && (recordings[option.id]?.length ?? 0) >= MIN_RECORDINGS_FOR_TEST
+				(option) => (recordings[option.id]?.length ?? 0) >= MIN_RECORDINGS_FOR_TEST
 			)
 	);
 	let normalizedRounds = $derived(clampRounds(roundsPerLabel));
