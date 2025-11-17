@@ -212,10 +212,6 @@
 		labelOptions = labelOptions.filter((option) => option.id !== id);
 	}
 
-	function hasMissingLabelValues() {
-		return labelOptions.some((option) => !option.value.trim());
-	}
-
 	function clearRecordingsForLabel(label: Label) {
 		const bucket = recordings[label] ?? [];
 		if (!bucket.length) return;
@@ -407,10 +403,6 @@
 
 	async function startRecording(label: Label) {
 		recordError = '';
-		if (hasMissingLabelValues()) {
-			recordError = m.error_missing_pairs();
-			return;
-		}
 		if (isRecording) {
 			recordError = m.error_active_recording();
 			return;
