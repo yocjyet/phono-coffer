@@ -857,17 +857,15 @@
 						<ul class="space-y-2">
 							{#each items as rec}
 								<li
-									class="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50/70 px-3 py-2 text-sm"
+									class="flex w-full items-center justify-between gap-3 rounded-xl border border-gray-100 bg-gray-50/70 px-3 py-2 text-sm"
 								>
-									<div class="flex flex-1 flex-col gap-1">
-										<span class="font-medium text-gray-800">
-											{m.recording_iteration({ index: rec.index })}
-										</span>
-										<audio controls src={rec.url} class="w-full"></audio>
-									</div>
+									<span class="font-medium whitespace-nowrap text-gray-800">
+										{m.recording_iteration({ index: rec.index })}
+									</span>
+									<audio controls src={rec.url} class="w-full"></audio>
 									<button
 										onclick={() => removeRecording(option.id, rec.id)}
-										class="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:text-red-600"
+										class="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-semibold whitespace-nowrap text-gray-700 shadow-sm hover:text-red-600"
 									>
 										<IconRefresh class="h-4 w-4" aria-hidden="true" />
 										<span>{m.re_record()}</span>
