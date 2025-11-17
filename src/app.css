@@ -1,2 +1,8 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/forms';
+
+@layer base {
+	* {
+		corner-shape: superellipse(2);
+	}
+}
