@@ -96,14 +96,19 @@
 
 	type Locale = (typeof locales)[number];
 
-	const localeNames: Record<Locale, string> = {
-		'zh-hant': '繁體中文',
-		en: 'English',
-		'zh-hans': '简体中文',
-		ja: '日本語'
-	};
-
 	const localeList = locales as readonly Locale[];
+
+	const displayNames =
+		browser && typeof Intl?.DisplayNames === 'function'
+			? new Intl.DisplayNames([navigator.language || 'en'], { type: 'language' })
+			: null;
+
+	const localeNames = $derived(
+		localeList.reduce((acc, code) => {
+			acc[code] = (displayNames?.of(code) as string | undefined) ?? code;
+			return acc;
+		}, {} as Record<Locale, string>)
+	);
 	const dangerButtonClasses =
 		'inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 font-semibold text-white transition hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 disabled:cursor-not-allowed disabled:opacity-60';
 
