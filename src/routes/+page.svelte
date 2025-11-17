@@ -1065,7 +1065,15 @@
 						{@const answerLabel = item.response
 							? (labelDisplayMap[item.response] ?? item.response)
 							: m.unanswered()}
-						<li class="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2">
+					<li
+						class={`flex items-center justify-between rounded-lg px-3 py-2 ${
+							item.correct === true
+								? 'bg-green-50'
+								: item.correct === false
+									? 'bg-red-50'
+									: 'bg-gray-50'
+						}`}
+					>
 							<div class="flex flex-col gap-1">
 								<span>
 									{m.question_feedback(
