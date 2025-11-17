@@ -13,13 +13,13 @@
 </svelte:head>
 
 <header
-	class="@container relative flex flex-col gap-4 border-b border-gray-100 bg-white/80 py-4 pr-28 pl-6 text-sm text-gray-500 shadow-sm"
+	class="relative flex flex-col gap-4 border-b border-gray-100 bg-white/80 py-4 pr-28 pl-6 text-sm text-gray-500 shadow-sm"
 >
 	<div class="flex flex-col gap-2">
 		<a href="/" class="text-sm font-semibold tracking-wide text-blue-600 uppercase"
 			>PhonoCoffer 韻匣</a
 		>
-		<h1 class="text-2xl font-bold text-black @[md]:text-3xl">{page.data.metadata.title}</h1>
+		<h1 class="text-2xl font-bold text-black">{page.data.metadata.title}</h1>
 	</div>
 
 	<label
