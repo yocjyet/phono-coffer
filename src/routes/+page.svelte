@@ -176,10 +176,12 @@
 	const objectUrls: string[] = [];
 
 	function playChimeNotification() {
-		if (!browser) return;
-		const audio = new Audio(chimeUrl);
-		audio.play().catch(() => {
-			/* ignore autoplay issues */
+		if (!browser) return Promise.resolve();
+		return new Promise<void>((resolve) => {
+			const audio = new Audio(chimeUrl);
+			audio.onended = () => resolve();
+			audio.onerror = () => resolve();
+			audio.play().catch(() => resolve());
 		});
 	}
 
@@ -444,7 +446,7 @@
 		stopTimer();
 	}
 
-	function startTest() {
+	async function startTest() {
 		testError = '';
 		if (!readyForTest) {
 			testError = m.error_min_recordings(
@@ -481,12 +483,14 @@
 			testItems = queue;
 			currentTestIndex = 0;
 			score = 0;
-			testActive = queue.length > 0;
 			testComplete = false;
 			currentSessionId = queue.length ? createId() : null;
-			if (testActive && autoPlayNext) {
-				playChimeNotification();
-				playCurrentSample();
+			if (queue.length) {
+				await playChimeNotification();
+				testActive = true;
+				if (autoPlayNext) {
+					playCurrentSample();
+				}
 			}
 		}
 
