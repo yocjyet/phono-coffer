@@ -15,6 +15,7 @@
 	import IconPlus from '~icons/mdi/plus';
 	import IconTag from '~icons/mdi/tag-outline';
 	import chimeUrl from '$lib/assets/chime.mp3';
+	import tingUrl from '$lib/assets/ting.mp3';
 	import {
 		buildSampleSet,
 		clampRounds,
@@ -180,6 +181,16 @@
 		if (!browser) return Promise.resolve();
 		return new Promise<void>((resolve) => {
 			const audio = new Audio(chimeUrl);
+			audio.onended = () => resolve();
+			audio.onerror = () => resolve();
+			audio.play().catch(() => resolve());
+		});
+	}
+
+	function playTingConfirmation() {
+		if (!browser) return Promise.resolve();
+		return new Promise<void>((resolve) => {
+			const audio = new Audio(tingUrl);
 			audio.onended = () => resolve();
 			audio.onerror = () => resolve();
 			audio.play().catch(() => resolve());
@@ -512,7 +523,7 @@
 		);
 	}
 
-	function submitGuess(label: Label) {
+	async function submitGuess(label: Label) {
 		if (!testActive) return;
 		const current = testItems[currentTestIndex];
 		if (!current || current.response) return;
@@ -531,6 +542,8 @@
 		if (correct) {
 			score += 1;
 		}
+
+		await playTingConfirmation();
 
 		if (currentTestIndex >= testItems.length - 1) {
 			testActive = false;
