@@ -67,5 +67,13 @@
 	"mistake_crosstab_title": "誤りクロステーブル",
 	"mistake_crosstab_hint": "行が提示語、列が回答です。対角線は正解、それ以外は誤答傾向を示します。",
 	"mistake_crosstab_header": "実際 \\\\ 予測",
-	"playing_prompt": "再生中…"
+	"playing_prompt": "再生中…",
+	"confirm_overwrite_import": "インポートすると現在の録音が上書きされます。続行しますか？",
+	"error_invalid_import": "無効なインポートファイル: {message}",
+	"error_invalid_audio_type": "無効な音声ファイル形式。",
+	"error_upload_failed": "アップロードに失敗しました: {message}",
+	"import_btn_loading": "インポート中…",
+	"import_btn": "セッションをインポート",
+	"upload_audio_title": "音声ファイルをアップロード",
+	"upload_audio_label": "アップロード"
 }

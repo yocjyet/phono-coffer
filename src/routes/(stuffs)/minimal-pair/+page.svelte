@@ -14,6 +14,8 @@
 	import IconDelete from '~icons/mdi/delete-outline';
 	import IconPlus from '~icons/mdi/plus';
 	import IconTag from '~icons/mdi/tag-outline';
+	import IconUpload from '~icons/mdi/upload';
+	import IconImport from '~icons/mdi/file-import';
 	import chimeUrl from '$lib/assets/chime.mp3';
 	import tingUrl from '$lib/assets/ting.mp3';
 	import {
@@ -36,7 +38,8 @@
 		formatDuration,
 		summarizeReactionTimes,
 		buildConfusionMatrix,
-		UNANSWERED_GUESS
+		UNANSWERED_GUESS,
+		parseReportZip
 	} from '$lib/minimal-pair';
 	import { TestSession } from '$lib/test-session';
 
@@ -184,6 +187,8 @@
 	let hideChoices = $state(false);
 	let hideChoicesTimeout: ReturnType<typeof setTimeout> | null = null;
 	let autoPlayNext = $state(true);
+	let importing = $state(false);
+	let importError = $state('');
 
 	const objectUrls: string[] = [];
 
@@ -720,11 +725,104 @@
 		clearHideChoicesTimer();
 		testError = '';
 	}
+
+	async function handleImportSession(event: Event) {
+		const input = event.currentTarget as HTMLInputElement;
+		const file = input.files?.[0];
+		if (!file) return;
+
+		importError = '';
+		importing = true;
+
+		try {
+			const result = await parseReportZip(file);
+			if (!result) {
+				importError = m.error_invalid_import({ message: 'Invalid zip file' });
+				return;
+			}
+
+			// Confirm if existing data should be overwritten if there are recordings
+			if (hasRecordings) {
+				const confirmed = window.confirm(m.confirm_overwrite_import());
+				if (!confirmed) return;
+			}
+
+			resetAll();
+			labelOptions = result.labels;
+			recordings = result.recordings;
+
+			// Ensure all labels have buckets
+			labelOptions.forEach((l) => ensureRecordingBucket(l.id));
+		} catch (err) {
+			importError = m.error_invalid_import({ message: (err as Error).message });
+		} finally {
+			importing = false;
+			input.value = ''; // Reset input
+		}
+	}
+
+	async function handleFileUpload(label: Label, event: Event) {
+		const input = event.currentTarget as HTMLInputElement;
+		const file = input.files?.[0];
+		if (!file) return;
+
+		// Basic validation
+		if (!file.type.startsWith('audio/')) {
+			recordError = m.error_invalid_audio_type();
+			return;
+		}
+
+		try {
+			const url = URL.createObjectURL(file);
+			objectUrls.push(url);
+			ensureRecordingBucket(label);
+			const existing = recordings[label] ?? [];
+
+			const newRecording: Recording = {
+				id: createId(),
+				label,
+				blob: file,
+				url,
+				index: existing.length + 1,
+				mimeType: file.type
+			};
+
+			recordings = {
+				...recordings,
+				[label]: [...existing, newRecording]
+			};
+		} catch (err) {
+			recordError = m.error_upload_failed({ message: (err as Error).message });
+		} finally {
+			input.value = '';
+		}
+	}
 </script>
 
 <div class="space-y-8 p-6">
 	<section class="space-y-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-		<h2 class="text-xl font-semibold text-gray-900">{m.step_input_title()}</h2>
+		<div class="flex items-center justify-between">
+			<h2 class="text-xl font-semibold text-gray-900">{m.step_input_title()}</h2>
+			<div class="relative">
+				<input
+					type="file"
+					accept=".zip"
+					class="absolute inset-0 cursor-pointer opacity-0"
+					onchange={handleImportSession}
+					disabled={importing}
+				/>
+				<button
+					class="flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
+					disabled={importing}
+				>
+					<IconImport class="h-4 w-4" />
+					<span>{importing ? m.import_btn_loading() : m.import_btn()}</span>
+				</button>
+			</div>
+		</div>
+		{#if importError}
+			<p class="text-sm font-semibold text-red-600">{importError}</p>
+		{/if}
 		<div class="grid gap-4 md:grid-cols-2">
 			{#each labelOptions as option, index (option.id)}
 				<div class="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-gray-50/70 p-4">
@@ -836,6 +934,24 @@
 								<span>{m.start_recording()}</span>
 							{/if}
 						</button>
+						<div class="relative">
+							<input
+								type="file"
+								accept="audio/*"
+								class="absolute inset-0 cursor-pointer opacity-0"
+								onchange={(e) => handleFileUpload(option.id, e)}
+								disabled={isActive}
+							/>
+							<button
+								type="button"
+								class="flex items-center justify-center gap-2 rounded-xl bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-200 disabled:opacity-50"
+								disabled={isActive}
+								title={m.upload_audio_title()}
+							>
+								<IconUpload class="h-5 w-5" />
+								<span class="sr-only">{m.upload_audio_label()}</span>
+							</button>
+						</div>
 						{#if items.length}
 							<button
 								onclick={() => clearRecordingsForLabel(option.id)}

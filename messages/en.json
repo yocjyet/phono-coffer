@@ -67,5 +67,13 @@
 	"mistake_crosstab_title": "Mistake cross-tab",
 	"mistake_crosstab_hint": "Rows = actual prompt, columns = your guess. Diagonals show correct picks; other counts highlight mistakes.",
 	"mistake_crosstab_header": "Actual \\\\ Predicted",
-	"playing_prompt": "Playing…"
+	"playing_prompt": "Playing…",
+	"error_invalid_import": "Invalid import file: {message}",
+	"confirm_overwrite_import": "Importing will overwrite current recordings. Continue?",
+	"error_invalid_audio_type": "Invalid audio file type.",
+	"error_upload_failed": "Upload failed: {message}",
+	"import_btn_loading": "Importing…",
+	"import_btn": "Import Session",
+	"upload_audio_title": "Upload audio file",
+	"upload_audio_label": "Upload"
 }

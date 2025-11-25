@@ -67,5 +67,13 @@
 	"mistake_crosstab_title": "错误交叉表",
 	"mistake_crosstab_hint": "行表示实际提示，列表示你的选择。对角线为正确，其余数字显示误判。",
 	"mistake_crosstab_header": "实际 \\\\ 预测",
-	"playing_prompt": "正在播放…"
+	"playing_prompt": "正在播放…",
+	"confirm_overwrite_import": "导入将覆盖当前录音。继续吗？",
+	"error_invalid_import": "无效的导入文件：{message}",
+	"error_invalid_audio_type": "无效的音频文件格式。",
+	"error_upload_failed": "上传失败：{message}",
+	"import_btn_loading": "正在导入…",
+	"import_btn": "导入会话",
+	"upload_audio_title": "上传音频文件",
+	"upload_audio_label": "上传"
 }

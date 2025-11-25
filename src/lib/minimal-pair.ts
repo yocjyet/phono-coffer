@@ -748,3 +748,58 @@ export function createReportFilename(labels: LabelsSnapshot, timestamp = Date.no
 	const labelSegment = safeNames.slice(0, 4).join('_') || 'labels';
 	return `minimal-pair-test_${labelSegment}_${timestamp}.zip`;
 }
+
+export async function parseReportZip(file: File | Blob | ArrayBuffer): Promise<{
+	labels: LabelDefinition[];
+	recordings: RecordingsMap;
+} | null> {
+	try {
+		const zip = await JSZip.loadAsync(file);
+		const reportFile = zip.file('report.json');
+		if (!reportFile) return null;
+
+		const reportText = await reportFile.async('text');
+		const payload = JSON.parse(reportText) as ReportPayload;
+
+		const newRecordings: RecordingsMap = {};
+		const labels = payload.labels || [];
+
+		// Initialize buckets
+		labels.forEach((l) => {
+			newRecordings[l.id] = [];
+		});
+
+		// Process recordings
+		if (payload.recordings && Array.isArray(payload.recordings)) {
+			for (const rec of payload.recordings) {
+				const zipEntry = zip.file(`recordings/${rec.filename}`);
+				if (zipEntry) {
+					const blob = await zipEntry.async('blob');
+					const url = URL.createObjectURL(blob);
+					const mimeType = blob.type || 'audio/webm'; // Fallback
+
+					if (!newRecordings[rec.label]) {
+						newRecordings[rec.label] = [];
+					}
+
+					newRecordings[rec.label].push({
+						id: createId(), // Generate new ID to avoid conflicts
+						label: rec.label,
+						url,
+						blob,
+						index: rec.index,
+						mimeType
+					});
+				}
+			}
+		}
+
+		return {
+			labels,
+			recordings: newRecordings
+		};
+	} catch (err) {
+		console.error('Failed to parse report zip:', err);
+		return null;
+	}
+}
