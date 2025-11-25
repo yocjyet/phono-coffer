@@ -38,6 +38,7 @@
 		buildConfusionMatrix,
 		UNANSWERED_GUESS
 	} from '$lib/minimal-pair';
+	import { TestSession } from '$lib/test-session';
 
 	type TestRunItem = TestItem & {
 		lastPlayedAt: number | null;
@@ -467,6 +468,28 @@
 		stopTimer();
 	}
 
+	const testSession = new TestSession();
+
+	testSession.onPlayAudio = (url) => {
+		currentAudio?.pause();
+		currentAudio = new Audio(url);
+		samplePlaying = true;
+		currentAudio.onended = () => (samplePlaying = false);
+		currentAudio.onerror = () => (samplePlaying = false);
+		currentAudio.play().catch(() => {
+			samplePlaying = false;
+		});
+	};
+
+	function syncState() {
+		const state = testSession.getState();
+		testItems = [...state.items] as TestRunItem[];
+		currentTestIndex = state.currentIndex;
+		score = state.score;
+		testActive = state.active;
+		testComplete = state.complete;
+	}
+
 	async function startTest() {
 		if (startingTest) return;
 		startingTest = true;
@@ -492,27 +515,14 @@
 		lastUsedRoundsPerLabel = perLabel;
 		currentLabelsSnapshot = cloneLabels(labelOptions);
 
-		const selections = labelOptions.flatMap((option) =>
-			buildSampleSet(recordings, option.id, perLabel)
-		);
+		testSession.start(recordings, labelOptions, perLabel);
+		syncState();
 
-		const queue: TestRunItem[] = shuffle(selections).map((sample) => ({
-			id: createId(),
-			sample,
-			response: null,
-			correct: null,
-			lastPlayedAt: null,
-			reactionTimeMs: null
-		}));
+		currentSessionId = testItems.length ? createId() : null;
 
-		testItems = queue;
-		currentTestIndex = 0;
-		score = 0;
-		testComplete = false;
-		currentSessionId = queue.length ? createId() : null;
-		if (queue.length) {
+		if (testItems.length) {
 			await playChimeNotification();
-			testActive = true;
+			// testActive is already true from syncState
 			if (autoPlayNext) {
 				playCurrentSample();
 			}
@@ -521,50 +531,25 @@
 	}
 
 	function playCurrentSample() {
-		const current = testItems[currentTestIndex];
-		if (!current) return;
-		currentAudio?.pause();
-		currentAudio = new Audio(current.sample.url);
-		samplePlaying = true;
-		currentAudio.onended = () => (samplePlaying = false);
-		currentAudio.onerror = () => (samplePlaying = false);
-		currentAudio.play().catch(() => {
-			samplePlaying = false;
-		});
-		const startedAt = Date.now();
-		testItems = testItems.map((item, index) =>
-			index === currentTestIndex ? { ...item, lastPlayedAt: startedAt } : item
-		);
+		testSession.playCurrent();
+		syncState();
 	}
 
 	async function submitGuess(label: Label) {
 		if (!testActive) return;
-		const current = testItems[currentTestIndex];
-		if (!current || current.response) return;
 
-		const correct = current.sample.label === label;
-		const reactionTimeMs =
-			typeof current.lastPlayedAt === 'number' ? Date.now() - current.lastPlayedAt : null;
-		const updated: TestRunItem = {
-			...current,
-			response: label,
-			correct,
-			reactionTimeMs
-		};
-		testItems = testItems.map((item, index) => (index === currentTestIndex ? updated : item));
+		const result = testSession.submitGuess(label);
+		if (!result) return;
 
-		if (correct) {
-			score += 1;
+		syncState();
+
+		if (result.correct) {
+			await playTingConfirmation();
 		}
 
-		await playTingConfirmation();
-
-		if (currentTestIndex >= testItems.length - 1) {
-			testActive = false;
-			testComplete = true;
+		if (result.complete) {
 			archiveCompletedTestSession();
 		} else {
-			currentTestIndex += 1;
 			if (autoPlayNext) {
 				playCurrentSample();
 			}
@@ -584,17 +569,15 @@
 	}
 
 	function resetAll() {
+		testSession.reset();
+		syncState();
+
 		recordings = labelOptions.reduce<RecordingsMap>((acc, option) => {
 			acc[option.id] = [];
 			return acc;
 		}, {});
 		recordError = '';
 		testError = '';
-		testItems = [];
-		currentTestIndex = 0;
-		score = 0;
-		testActive = false;
-		testComplete = false;
 		currentSessionId = null;
 		isRecording = null;
 		recordingTarget = null;
@@ -728,11 +711,9 @@
 		stream = null;
 		mediaRecorder = null;
 
-		testItems = [];
-		currentTestIndex = 0;
-		score = 0;
-		testActive = false;
-		testComplete = false;
+		testSession.reset();
+		syncState();
+
 		currentSessionId = null;
 		currentLabelsSnapshot = null;
 		hideChoices = false;
