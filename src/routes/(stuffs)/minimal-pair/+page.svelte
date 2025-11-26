@@ -1011,7 +1011,7 @@
 		</p>
 		<div class="space-y-3">
 			<label class="space-y-2 font-medium">
-				<span>{m.rounds_label()}</span>
+				<span>{m.rounds_label({ default: DEFAULT_ROUNDS_PER_LABEL })}</span>
 				<input
 					type="number"
 					min={MIN_ROUNDS_PER_LABEL}
