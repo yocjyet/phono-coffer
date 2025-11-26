@@ -76,5 +76,9 @@
 	"import_btn_loading": "匯入中⋯⋯",
 	"import_btn": "匯入測驗",
 	"upload_audio_title": "上傳音訊檔案",
-	"upload_audio_label": "上傳"
+	"upload_audio_label": "上傳",
+	"spectrogram_loading": "生成中...",
+	"spectrogram_error": "生成頻譜圖失敗",
+	"spectrogram_scale_label": "最大頻率",
+	"spectrogram_hz_label": "Hz"
 }

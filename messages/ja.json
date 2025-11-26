@@ -76,5 +76,9 @@
 	"import_btn_loading": "インポート中…",
 	"import_btn": "セッションをインポート",
 	"upload_audio_title": "音声ファイルをアップロード",
-	"upload_audio_label": "アップロード"
+	"upload_audio_label": "アップロード",
+	"spectrogram_loading": "生成中...",
+	"spectrogram_error": "スペクトログラムの生成に失敗しました",
+	"spectrogram_scale_label": "最大周波数",
+	"spectrogram_hz_label": "Hz"
 }

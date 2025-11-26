@@ -76,5 +76,9 @@
 	"import_btn_loading": "正在导入…",
 	"import_btn": "导入会话",
 	"upload_audio_title": "上传音频文件",
-	"upload_audio_label": "上传"
+	"upload_audio_label": "上传",
+	"spectrogram_loading": "生成中...",
+	"spectrogram_error": "生成频谱图失败",
+	"spectrogram_scale_label": "最大频率",
+	"spectrogram_hz_label": "Hz"
 }

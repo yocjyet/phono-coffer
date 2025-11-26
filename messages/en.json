@@ -76,5 +76,9 @@
 	"import_btn_loading": "Importing…",
 	"import_btn": "Import Session",
 	"upload_audio_title": "Upload audio file",
-	"upload_audio_label": "Upload"
+	"upload_audio_label": "Upload",
+	"spectrogram_loading": "Generating...",
+	"spectrogram_error": "Failed to generate spectrogram",
+	"spectrogram_scale_label": "Max Frequency",
+	"spectrogram_hz_label": "Hz"
 }

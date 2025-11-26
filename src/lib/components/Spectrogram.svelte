@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { getAudioContext } from '$lib/audio-context';
 	import { logger } from '$lib/logger';
+	import { m } from '$lib/paraglide/messages';
 
 	let { src }: { src: string } = $props();
 
@@ -139,7 +140,7 @@
 		} catch (e) {
 			logger.error('Failed to generate spectrogram', { error: e });
 			console.error(e);
-			error = 'Failed to generate spectrogram';
+			error = m.spectrogram_error();
 		} finally {
 			loading = false;
 			// Do NOT close shared context
@@ -157,7 +158,7 @@
 	<canvas bind:this={canvas} width="600" height="128" class="h-full w-full"></canvas>
 	{#if loading}
 		<div class="absolute inset-0 flex items-center justify-center bg-black/50 text-xs text-white">
-			Generating...
+			{m.spectrogram_loading()}
 		</div>
 	{/if}
 	{#if error}
