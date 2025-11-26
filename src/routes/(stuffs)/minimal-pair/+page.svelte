@@ -18,6 +18,7 @@
 	import IconImport from '~icons/mdi/file-import';
 	import chimeUrl from '$lib/assets/chime.mp3';
 	import tingUrl from '$lib/assets/ting.mp3';
+	import Waveform from '$lib/components/Waveform.svelte';
 	import {
 		buildSampleSet,
 		clampRounds,
@@ -964,12 +965,19 @@
 						{/if}
 					</div>
 					{#if isActive}
-						<p class="rounded-lg bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700">
-							{m.recording_status(
-								{ label: labelText, timer: timerDisplay },
-								{ locale: activeLocale }
-							)}
-						</p>
+						<div
+							class="flex items-center gap-3 rounded-lg bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700"
+						>
+							<div class="flex-1">
+								{m.recording_status(
+									{ label: labelText, timer: timerDisplay },
+									{ locale: activeLocale }
+								)}
+							</div>
+							<div class="h-8 w-24">
+								<Waveform {stream} />
+							</div>
+						</div>
 					{/if}
 					{#if !items.length}
 						<p class="rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-500">
