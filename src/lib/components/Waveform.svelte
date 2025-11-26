@@ -9,7 +9,7 @@
 	let source: MediaStreamAudioSourceNode | null = null;
 	let animationId: number;
 
-	const LENGTH_MULTIPLIER = 2;
+	const LENGTH_MULTIPLIER = 1;
 	const FILL_COLOR = 'rgb(239, 68, 68)';
 
 	function startVisualization() {
