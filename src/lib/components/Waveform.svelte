@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
+	import { getAudioContext } from '$lib/audio-context';
 
 	let { stream }: { stream: MediaStream | null } = $props();
 
@@ -15,9 +16,7 @@
 	function startVisualization() {
 		if (!stream || !canvas) return;
 
-		if (!audioContext) {
-			audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-		}
+			const audioContext = getAudioContext();
 
 		if (audioContext.state === 'suspended') {
 			audioContext.resume();
@@ -88,9 +87,7 @@
 			analyser.disconnect();
 			analyser = null;
 		}
-		// Do not close AudioContext here as it might be expensive to recreate,
-		// or we can close it if we want to be clean.
-		// For now let's keep it open or let the browser handle it.
+		// Do not close AudioContext
 	}
 
 	$effect(() => {
@@ -103,9 +100,6 @@
 
 	onDestroy(() => {
 		stopVisualization();
-		if (audioContext) {
-			audioContext.close();
-		}
 	});
 </script>
 

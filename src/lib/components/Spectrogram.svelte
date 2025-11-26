@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { getAudioContext } from '$lib/audio-context';
 
 	let { src }: { src: string } = $props();
 
@@ -17,7 +18,10 @@
 		try {
 			const response = await fetch(src);
 			const arrayBuffer = await response.arrayBuffer();
-			audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+
+			const audioContext = getAudioContext();
+			await audioContext.resume(); // Ensure it's running
+
 			const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
 
 			const channelData = audioBuffer.getChannelData(0);
@@ -216,9 +220,7 @@
 			error = 'Failed to generate spectrogram';
 		} finally {
 			loading = false;
-			if (audioContext && audioContext.state !== 'closed') {
-				audioContext.close();
-			}
+			// Do NOT close shared context
 		}
 	}
 
