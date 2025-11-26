@@ -19,6 +19,7 @@
 	import chimeUrl from '$lib/assets/chime.mp3';
 	import tingUrl from '$lib/assets/ting.mp3';
 	import Waveform from '$lib/components/Waveform.svelte';
+	import Spectrogram from '$lib/components/Spectrogram.svelte';
 	import {
 		buildSampleSet,
 		clampRounds,
@@ -995,7 +996,10 @@
 									<span class="font-medium whitespace-nowrap text-gray-800">
 										{m.recording_iteration({ index: rec.index })}
 									</span>
-									<audio controls src={rec.url} class="w-full"></audio>
+									<div class="flex w-full flex-col gap-2">
+										<Spectrogram src={rec.url} />
+										<audio controls src={rec.url} class="w-full"></audio>
+									</div>
 									<button
 										onclick={() => removeRecording(option.id, rec.id)}
 										class="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-semibold whitespace-nowrap text-gray-700 shadow-sm hover:text-red-600"
