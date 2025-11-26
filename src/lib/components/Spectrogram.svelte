@@ -6,22 +6,27 @@
 
 	let { src }: { src: string } = $props();
 
+	const FREQ_OPTIONS = [2000, 5000, 8000, 12000, 20000] as const;
+
 	let canvas: HTMLCanvasElement;
 	let error = $state('');
 	let loading = $state(false);
+	let maxFreq: (typeof FREQ_OPTIONS)[number] = $state(8000); // Default to 5kHz for speech focus
 
 	async function generateSpectrogram() {
 		if (!src || !canvas) return;
 		loading = true;
 		error = '';
 
+		let audioContext: AudioContext | null = null;
+
 		try {
-			logger.info('Generating spectrogram', { src });
+			logger.info('Generating spectrogram', { src, maxFreq });
 			const response = await fetch(src);
 			const arrayBuffer = await response.arrayBuffer();
 
-			const audioContext = getAudioContext();
-			await audioContext.resume(); // Ensure it's running
+			audioContext = getAudioContext();
+			await audioContext.resume();
 
 			const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
 
@@ -30,7 +35,7 @@
 
 			// FFT parameters
 			const fftSize = 2048;
-			const hopSize = 256; // Overlap
+			const hopSize = 256;
 
 			const width = canvas.width;
 			const height = canvas.height;
@@ -104,6 +109,20 @@
 			const maxCol = Math.ceil((channelData.length - N) / step);
 			const colWidth = width / maxCol;
 
+			// Calculate max bin based on maxFreq
+			// Nyquist = sampleRate / 2
+			// Bin width = sampleRate / N
+			// But wait, our simpleFFT uses N=256, so bin width is sampleRate / 256.
+			// e.g. 48000 / 256 = 187.5 Hz per bin.
+			// If maxFreq is 5000, we need 5000 / 187.5 = 26.6 bins.
+			// This resolution is quite low for N=256.
+			// Maybe we should increase N if we want better frequency resolution?
+			// But N=256 is fast. Let's stick with it for now or bump to 512 if needed.
+			// Let's keep N=256 for performance as requested by "mini" nature, but 5000Hz is only ~26 bins.
+
+			const binWidth = sampleRate / N;
+			const maxBin = Math.min(Math.floor(maxFreq / binWidth), N / 2);
+
 			for (let i = 0; i < maxCol; i++) {
 				const offset = i * step;
 				if (offset + N > channelData.length) break;
@@ -117,7 +136,8 @@
 				const mags = simpleFFT(chunk);
 
 				// Draw column
-				for (let j = 0; j < mags.length; j++) {
+				// We only draw up to maxBin
+				for (let j = 0; j < maxBin; j++) {
 					const mag = mags[j];
 					// Log scale intensity
 					const intensity = Math.min(255, Math.log10(mag + 1) * 100 * 20);
@@ -130,9 +150,12 @@
 					ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
 
 					// Draw pixel (upside down because canvas y=0 is top)
-					const y = height - (j / mags.length) * height;
-					const h = height / mags.length;
+					// We need to map j (0 to maxBin) to canvas height (height to 0)
 
+					const y = height - (j / maxBin) * height;
+					const h = height / maxBin;
+
+					// Draw slightly overlapping to avoid gaps
 					ctx.fillRect(i * colWidth, y - h, colWidth + 0.5, h + 0.5);
 				}
 			}
@@ -148,14 +171,38 @@
 	}
 
 	$effect(() => {
-		if (src) {
+		if (src && maxFreq) {
 			generateSpectrogram();
 		}
 	});
 </script>
 
-<div class="relative h-32 w-full overflow-hidden rounded-lg bg-black">
-	<canvas bind:this={canvas} width="600" height="128" class="h-full w-full"></canvas>
+<div class="group relative w-full overflow-hidden rounded-lg border border-gray-300 bg-black">
+	<canvas bind:this={canvas} width="600" height="128" class="h-32 w-full"></canvas>
+
+	<!-- Frequency Scale Indicators -->
+	<div class="pointer-events-none absolute top-1 left-1 text-[10px] text-white/70">
+		{maxFreq / 1000}k {m.spectrogram_hz_label()}
+	</div>
+	<div class="pointer-events-none absolute bottom-1 left-1 text-[10px] text-white/70">
+		0 {m.spectrogram_hz_label()}
+	</div>
+
+	<!-- Controls (visible on hover) -->
+	<div class="absolute top-1 right-1 opacity-0 transition-opacity group-hover:opacity-100">
+		<select
+			bind:value={maxFreq}
+			class="rounded border border-white/20 bg-black/50 px-1 py-0.5 text-xs text-white outline-none focus:border-white/50"
+			aria-label={m.spectrogram_scale_label()}
+		>
+			{#each FREQ_OPTIONS as freq}
+				<option value={freq}
+					>{freq < 1000 ? freq : freq / 1000 + 'k'} {m.spectrogram_hz_label()}</option
+				>
+			{/each}
+		</select>
+	</div>
+
 	{#if loading}
 		<div class="absolute inset-0 flex items-center justify-center bg-black/50 text-xs text-white">
 			{m.spectrogram_loading()}
