@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
+	import { page } from '$app/state';
 	import { onDestroy } from 'svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { getLocale, locales, setLocale } from '$lib/paraglide/runtime';
@@ -43,6 +44,8 @@
 		UNANSWERED_GUESS,
 		parseReportZip
 	} from '$lib/minimal-pair';
+	import { logger } from '$lib/logger';
+	import DebugLog from '$lib/components/DebugLog.svelte';
 	import { TestSession } from '$lib/test-session';
 
 	type TestRunItem = TestItem & {
@@ -340,38 +343,58 @@
 	async function ensureRecorder() {
 		if (!browser) {
 			recordError = m.error_browser_only();
+			logger.error('ensureRecorder called in non-browser environment');
 			return false;
 		}
 		if (!navigator.mediaDevices?.getUserMedia) {
 			recordError = m.error_no_media();
+			logger.error('navigator.mediaDevices.getUserMedia not supported');
 			return false;
 		}
-		if (!stream) {
-			stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+		try {
+			if (!stream || !stream.active) {
+				logger.info('Requesting new MediaStream');
+				stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+			}
+		} catch (err) {
+			logger.error('Failed to getUserMedia', { error: err });
+			recordError = m.error_no_media(); // Or a more specific error
+			return false;
 		}
-		if (!mediaRecorder) {
+
+		if (!mediaRecorder || mediaRecorder.state === 'inactive') {
 			if (!recorderMimeType) {
 				recorderMimeType = detectSupportedMimeType();
+				logger.info('Detected mime type', { mimeType: recorderMimeType });
 			}
 			const options = recorderMimeType ? { mimeType: recorderMimeType } : undefined;
 			try {
+				if (!stream) throw new Error('No stream available');
 				mediaRecorder = options ? new MediaRecorder(stream, options) : new MediaRecorder(stream);
+				logger.info('Created new MediaRecorder', { mimeType: mediaRecorder.mimeType });
 			} catch (err) {
-				recordError = m.error_unsupported_format(
-					{ message: (err as Error).message },
-					{ locale: activeLocale }
-				);
+				const message = (err as Error).message;
+				recordError = m.error_unsupported_format({ message }, { locale: activeLocale });
+				logger.error('Failed to create MediaRecorder', { error: err });
 				return false;
 			}
 			if (mediaRecorder.mimeType) {
 				recorderMimeType = mediaRecorder.mimeType;
 			}
+
+			mediaRecorder.onerror = (event) => {
+				logger.error('MediaRecorder error', { error: (event as any).error });
+				stopRecording();
+				recordError = 'Recording failed: ' + ((event as any).error?.message || 'Unknown error');
+			};
+
 			mediaRecorder.ondataavailable = (event) => {
 				if (event.data.size > 0) {
 					audioChunks.push(event.data);
 				}
 			};
 			mediaRecorder.onstop = () => {
+				logger.info('MediaRecorder stopped', { chunkCount: audioChunks.length });
 				finalizeRecording();
 			};
 		}
@@ -447,11 +470,16 @@
 		recordError = '';
 		if (isRecording) {
 			recordError = m.error_active_recording();
+			logger.warn('Attempted to start recording while already recording');
 			return;
 		}
 		try {
+			logger.info('Starting recording', { label });
 			const ok = await ensureRecorder();
-			if (!ok || !mediaRecorder) return;
+			if (!ok || !mediaRecorder) {
+				logger.error('Failed to ensure recorder');
+				return;
+			}
 			audioChunks = [];
 			recordingTarget = label;
 			ensureRecordingBucket(label);
@@ -462,19 +490,25 @@
 			}, 100);
 			mediaRecorder.start();
 			isRecording = label;
+			logger.info('Recording started');
 		} catch (err) {
-			recordError = m.error_start_recording(
-				{ message: (err as Error).message },
-				{ locale: activeLocale }
-			);
+			const message = (err as Error).message;
+			recordError = m.error_start_recording({ message }, { locale: activeLocale });
+			logger.error('Exception starting recording', { error: err });
 		}
 	}
 
 	function stopRecording() {
+		logger.info('Stopping recording');
 		if (mediaRecorder && mediaRecorder.state === 'recording') {
 			mediaRecorder.stop();
+		} else {
+			logger.warn('stopRecording called but mediaRecorder not recording', {
+				state: mediaRecorder?.state
+			});
+			stopTimer(); // Ensure timer stops even if recorder wasn't running
+			isRecording = null; // Reset state if it got stuck
 		}
-		stopTimer();
 	}
 
 	const testSession = new TestSession();
@@ -1315,4 +1349,8 @@
 			{/if}
 		</div>
 	</section>
+
+	{#if page.url.searchParams.get('debug') === 'true'}
+		<DebugLog />
+	{/if}
 </div>
