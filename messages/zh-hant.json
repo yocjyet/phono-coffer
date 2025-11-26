@@ -46,6 +46,7 @@
 	"export_button": "匯出",
 	"confirm_new_test": "先前已有尚未匯出的測驗結果，開始新的測驗將覆蓋目前答題進度。要繼續嗎？",
 	"confirm_reset": "確定要清除所有錄音與測驗紀錄？此動作無法復原。",
+	"confirm_clear_recordings": "確定要清除本詞語所有錄音？此動作無法復原。",
 	"confirm_terminate": "終止後將清除當前測驗結果，但錄音會保留。確定要結束嗎？",
 	"error_browser_only": "錄音只能在瀏覽器環境執行。",
 	"error_no_media": "此瀏覽器不支援麥克風錄音。",

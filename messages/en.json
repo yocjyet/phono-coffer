@@ -46,6 +46,7 @@
 	"export_button": "Export",
 	"confirm_new_test": "Unexported results exist. Starting a new test overwrites the current progress. Continue?",
 	"confirm_reset": "Clear all recordings and test data? This cannot be undone.",
+	"confirm_clear_recordings": "Clear all recordings for this word? This cannot be undone.",
 	"confirm_terminate": "Ending now will erase current test results, but recordings will be kept. End the session?",
 	"error_browser_only": "Recording is only available in the browser.",
 	"error_no_media": "This browser does not support microphone recording.",

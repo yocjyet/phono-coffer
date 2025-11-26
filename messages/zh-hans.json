@@ -46,6 +46,7 @@
 	"export_button": "导出",
 	"confirm_new_test": "先前已有尚未导出的测验结果，开始新的测验将覆盖目前答题进度。要继续吗？",
 	"confirm_reset": "确定要清除所有录音与测验纪录？此动作无法复原。",
+	"confirm_clear_recordings": "确定要清楚本词语的所有录音？此动作无法复原。",
 	"confirm_terminate": "终止后将清除当前测验结果，但录音会保留。确定要结束吗？",
 	"error_browser_only": "录音只能在浏览器环境执行。",
 	"error_no_media": "此浏览器不支持麦克风录音。",

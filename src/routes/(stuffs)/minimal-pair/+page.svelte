@@ -253,6 +253,8 @@
 	}
 
 	function clearRecordingsForLabel(label: Label) {
+		if (!window.confirm(m.confirm_clear_recordings())) return;
+
 		const bucket = recordings[label] ?? [];
 		if (!bucket.length) return;
 		bucket.forEach((rec) => {
