@@ -37,7 +37,7 @@
 	}
 </script>
 
-<div class="fixed right-4 bottom-4 z-50 flex flex-col items-end gap-2">
+<div class="fixed right-2 bottom-2 z-50 flex flex-col items-end gap-2">
 	<button
 		onclick={toggle}
 		class="rounded-full bg-gray-800 px-4 py-2 text-sm font-semibold text-white shadow-lg hover:bg-gray-700 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:outline-none"
@@ -53,7 +53,7 @@
 	{#if visible}
 		<div
 			transition:slide={{ axis: 'y' }}
-			class="max-h-96 w-full max-w-lg overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl sm:w-[500px]"
+			class="max-h-96 w-full max-w-[calc(100vw-4rem)] min-w-[300px] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl sm:min-w-[500px]"
 		>
 			<div class="flex items-center justify-between border-b border-gray-100 bg-gray-50 px-4 py-2">
 				<h3 class="text-sm font-semibold text-gray-700">Debug Logs</h3>
@@ -80,9 +80,11 @@
 								<p class="font-mono wrap-break-word text-gray-800">{log.message}</p>
 								{#if log.data}
 									<pre
-										class="mt-1 overflow-x-auto rounded bg-gray-100 p-1 text-[10px] text-gray-600">
-										{JSON.stringify(log.data, null, 2)}
-									</pre>
+										class="mt-1 overflow-x-auto rounded bg-gray-100 p-1 text-[10px] text-gray-600">{JSON.stringify(
+											log.data,
+											null,
+											2
+										)}</pre>
 								{/if}
 							</li>
 						{/each}
