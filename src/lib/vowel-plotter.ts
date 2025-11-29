@@ -21,7 +21,13 @@ export const STANDARD_VOWELS: VowelDefinition[] = [
   { ipa: 'ɤ', f1: 460, f2: 1310 },
   { ipa: 'o', f1: 360, f2: 640 },
   { ipa: 'ɯ', f1: 300, f2: 1390 },
-  { ipa: 'u', f1: 250, f2: 595 }
+  { ipa: 'u', f1: 250, f2: 595 },
+  { ipa: 'ɨ', f1: 340, f2: 1600 },
+  { ipa: 'ɘ', f1: 360, f2: 1400 },
+  { ipa: 'ɜ', f1: 480, f2: 1200 },
+  { ipa: 'ä', f1: 510, f2: 1000 },
+  { ipa: 'ə', f1: 500, f2: 1500 },
+  { ipa: 'ɐ', f1: 600, f2: 1350 },
 ];
 
 export type FormantData = {

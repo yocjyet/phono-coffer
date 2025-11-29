@@ -53,6 +53,35 @@
 		// Inverted y-axis: low F1 on top, high F1 on bottom
 		return padding + ((f1 - f1Min) / (f1Max - f1Min)) * (height - 2 * padding);
 	}
+
+	const trapeziumVowels = ['i', 'e', 'ɛ', 'a', 'ä', 'ɑ', 'ɔ', 'o', 'u', 'ɨ'];
+	const trapeziumPoints = $derived(
+		trapeziumVowels
+			.map((ipa) => {
+				const v = STANDARD_VOWELS.find((v) => v.ipa === ipa);
+				return v ? `${scaleX(v.f2)},${scaleY(v.f1)}` : '';
+			})
+			.filter(Boolean)
+			.join(' ')
+	);
+
+	const innerLines = [
+		['e', 'ɘ', 'o'],
+		['ɛ', 'ɜ', 'ɔ'],
+		['ɨ', 'ə', 'ɐ', 'ä']
+	];
+
+	const innerLinePoints = $derived(
+		innerLines.map((line) =>
+			line
+				.map((ipa) => {
+					const v = STANDARD_VOWELS.find((v) => v.ipa === ipa);
+					return v ? `${scaleX(v.f2)},${scaleY(v.f1)}` : '';
+				})
+				.filter(Boolean)
+				.join(' ')
+		)
+	);
 </script>
 
 <div class="mx-auto max-w-4xl space-y-8 px-6 py-12">
@@ -182,6 +211,28 @@
 						transform={`rotate(-90, 10, ${height / 2})`}
 						class="fill-gray-500 text-xs font-semibold">{m.vp_axis_f1()}</text
 					>
+
+					<!-- Vowel Trapezium -->
+					<polygon
+						points={trapeziumPoints}
+						fill="none"
+						stroke="#d1d5db"
+						stroke-width="2"
+						stroke-linejoin="round"
+						class="opacity-50"
+					/>
+
+					<!-- Inner Vowel Lines -->
+					{#each innerLinePoints as points}
+						<polyline
+							{points}
+							fill="none"
+							stroke="#d1d5db"
+							stroke-width="1"
+							stroke-linejoin="round"
+							class="opacity-50"
+						/>
+					{/each}
 
 					<!-- Standard Vowels -->
 					{#each STANDARD_VOWELS as vowel}
