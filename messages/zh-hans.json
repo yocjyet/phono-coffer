@@ -1,6 +1,6 @@
 {
 	"$schema": "https://inlang.com/schema/inlang-message-format",
-	"app_title": "最小对自测系统",
+	"minimal_pair_title": "最小对自测系统",
 	"language_label": "界面语言",
 	"home_hero_title": "最小对自测器",
 	"home_hero_description": "使用最小对自测器进行自测，确认自己是否真的能分辨不同的发音对。",

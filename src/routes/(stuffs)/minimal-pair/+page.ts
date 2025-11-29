@@ -1,9 +1,9 @@
 import { m } from '$lib/paraglide/messages';
 
-export function load({}) {
+export function load({ }) {
 	return {
 		metadata: {
-			title: m.app_title()
+			title: m.minimal_pair_title()
 		}
 	};
 }

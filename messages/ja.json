@@ -1,6 +1,6 @@
 {
 	"$schema": "https://inlang.com/schema/inlang-message-format",
-	"app_title": "ミニマル・ペア自己テスト",
+	"minimal_pair_title": "ミニマル・ペア自己テスト",
 	"language_label": "表示言語",
 	"home_hero_title": "ミニマルペア自己テスター",
 	"home_hero_description": "ミニマルペア自己テスターで、自分が本当に発音の違いを聞き分けられるか確かめましょう。",

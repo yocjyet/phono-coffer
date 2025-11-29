@@ -1,6 +1,6 @@
 {
 	"$schema": "https://inlang.com/schema/inlang-message-format",
-	"app_title": "Minimal Pair Self-Test",
+	"minimal_pair_title": "Minimal Pair Self-Test",
 	"language_label": "Interface language",
 	"home_hero_title": "Minimal Pair Self-Tester",
 	"home_hero_description": "Pick the minimal-pair self-tester to quiz oneself to decide whether you really distinguish between pairs of pronunciation.",
