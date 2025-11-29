@@ -54,6 +54,8 @@
 		return padding + ((f1 - f1Min) / (f1Max - f1Min)) * (height - 2 * padding);
 	}
 
+	let drawTrapezium = $state(true);
+
 	const trapeziumVowels = ['i', 'e', 'ɛ', 'a', 'ä', 'ɑ', 'ɔ', 'o', 'u', 'ɨ'];
 	const trapeziumPoints = $derived(
 		trapeziumVowels
@@ -158,6 +160,13 @@
 
 		<div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
 			<h3 class="mb-4 text-lg font-semibold text-gray-900">{m.vp_chart_title()}</h3>
+			<label
+				for="draw-trapezium"
+				class="mb-2 flex items-center gap-1 text-sm font-semibold text-gray-700"
+			>
+				<input type="checkbox" id="draw-trapezium" bind:checked={drawTrapezium} />
+				{m.vp_draw_trapezium()}
+			</label>
 			<div class="relative w-full overflow-hidden rounded-xl bg-gray-50">
 				<svg viewBox={`0 0 ${width} ${height}`} class="w-full">
 					<!-- Grid lines -->
@@ -213,26 +222,28 @@
 					>
 
 					<!-- Vowel Trapezium -->
-					<polygon
-						points={trapeziumPoints}
-						fill="none"
-						stroke="#d1d5db"
-						stroke-width="2"
-						stroke-linejoin="round"
-						class="opacity-50"
-					/>
-
-					<!-- Inner Vowel Lines -->
-					{#each innerLinePoints as points}
-						<polyline
-							{points}
+					{#if drawTrapezium}
+						<polygon
+							points={trapeziumPoints}
 							fill="none"
 							stroke="#d1d5db"
-							stroke-width="1"
+							stroke-width="2"
 							stroke-linejoin="round"
 							class="opacity-50"
 						/>
-					{/each}
+
+						<!-- Inner Vowel Lines -->
+						{#each innerLinePoints as points}
+							<polyline
+								{points}
+								fill="none"
+								stroke="#d1d5db"
+								stroke-width="1"
+								stroke-linejoin="round"
+								class="opacity-50"
+							/>
+						{/each}
+					{/if}
 
 					<!-- Standard Vowels -->
 					{#each STANDARD_VOWELS as vowel}
