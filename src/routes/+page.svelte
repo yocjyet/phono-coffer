@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { m } from '$lib/paraglide/messages';
 	import minimalPairsShot from '$lib/assets/screenshots/minimal-pairs.png';
+	import vowelPlotterShot from '$lib/assets/screenshots/vowel-plotter.png';
+	import IconCompare from '~icons/mdi/compare';
 	import IconChartScatterPlot from '~icons/mdi/chart-scatter-plot';
 
 	type Tool = {
@@ -20,7 +22,8 @@
 			href: '/minimal-pair',
 			ctaPrimary: m.minimal_pair_cta(),
 			ctaSecondary: '',
-			image: minimalPairsShot
+			image: minimalPairsShot,
+			icon: IconCompare
 		},
 		{
 			title: m.vowel_plotter_home_title(),
@@ -28,6 +31,7 @@
 			href: '/vowel-plotter',
 			ctaPrimary: m.vowel_plotter_cta(),
 			ctaSecondary: '',
+			image: vowelPlotterShot,
 			icon: IconChartScatterPlot
 		}
 	];
@@ -105,7 +109,16 @@
 				class="grid items-center gap-8 rounded-3xl border border-gray-200 bg-white/80 p-8 shadow-sm md:grid-cols-2"
 			>
 				<div class="space-y-4">
-					<h1 class="text-3xl font-bold text-gray-900">{tool.title}</h1>
+					<h1
+						class="flex flex-col items-start justify-start gap-2 text-left text-3xl font-bold text-gray-900"
+					>
+						{#if tool.icon}
+							<div class="rounded-lg bg-blue-100/50 p-2 text-blue-500">
+								<tool.icon class="h-8 w-8" />
+							</div>
+						{/if}
+						{tool.title}
+					</h1>
 					<p class="text-gray-600">{tool.description}</p>
 					<div class="flex flex-wrap gap-3">
 						<a
@@ -128,8 +141,6 @@
 				>
 					{#if tool.image}
 						<img src={tool.image} alt={tool.title} class="block h-full w-full object-cover" />
-					{:else if tool.icon}
-						<tool.icon class="h-24 w-24 text-gray-300" />
 					{/if}
 				</a>
 			</section>
