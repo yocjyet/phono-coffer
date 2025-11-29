@@ -6,12 +6,26 @@
 		type ParsedResult,
 		type VowelDefinition
 	} from '$lib/vowel-plotter';
+	import { vowelProfiles } from '$lib/stores/vowel-profiles';
 	import IconChartScatterPlot from '~icons/mdi/chart-scatter-plot';
 	import IconContentPaste from '~icons/mdi/content-paste';
+	import IconPlus from '~icons/mdi/plus';
+	import IconDownload from '~icons/mdi/download';
+	import IconUpload from '~icons/mdi/upload';
+	import IconDelete from '~icons/mdi/delete';
+	import IconPencil from '~icons/mdi/pencil';
+	import VowelChart from '$lib/components/VowelChart.svelte';
 
 	let inputData = $state('');
 	let result = $state<ParsedResult | null>(null);
 	let error = $state('');
+	let selectedProfileId = $state('standard');
+
+	const activeVowels = $derived(
+		selectedProfileId === 'standard'
+			? STANDARD_VOWELS
+			: $vowelProfiles.find((p) => p.id === selectedProfileId)?.vowels || STANDARD_VOWELS
+	);
 
 	function handleAnalyze() {
 		error = '';
@@ -31,68 +45,99 @@
 		}
 	}
 
-	// Chart dimensions
-	const width = 600;
-	const height = 400;
-	const padding = 40;
-
-	// Scales (inverted for F1 and F2 as is standard in phonetics)
-	// F1 (y-axis): 200 - 900
-	// F2 (x-axis): 500 - 2500
-	const f1Min = 200;
-	const f1Max = 900;
-	const f2Min = 500;
-	const f2Max = 2500;
-
-	function scaleX(f2: number) {
-		// Inverted x-axis: high F2 on left, low F2 on right
-		return width - padding - ((f2 - f2Min) / (f2Max - f2Min)) * (width - 2 * padding);
-	}
-
-	function scaleY(f1: number) {
-		// Inverted y-axis: low F1 on top, high F1 on bottom
-		return padding + ((f1 - f1Min) / (f1Max - f1Min)) * (height - 2 * padding);
-	}
-
 	let drawTrapezium = $state(true);
 
-	const trapeziumVowels = ['i', 'e', 'ɛ', 'a', 'ä', 'ɑ', 'ɔ', 'o', 'u', 'ɨ'];
-	const trapeziumPoints = $derived(
-		trapeziumVowels
-			.map((ipa) => {
-				const v = STANDARD_VOWELS.find((v) => v.ipa === ipa);
-				return v ? `${scaleX(v.f2)},${scaleY(v.f1)}` : '';
-			})
-			.filter(Boolean)
-			.join(' ')
-	);
+	function handleExportProfile() {
+		const profile = $vowelProfiles.find((p) => p.id === selectedProfileId);
+		if (!profile) return;
+		const blob = new Blob([JSON.stringify(profile, null, 2)], { type: 'application/json' });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = `${profile.name.replace(/\s+/g, '_')}_vowel_profile.json`;
+		a.click();
+		URL.revokeObjectURL(url);
+	}
 
-	const innerLines = [
-		['e', 'ɘ', 'o'],
-		['ɛ', 'ɜ', 'ɔ'],
-		['ɨ', 'ə', 'ɐ', 'ä']
-	];
+	function handleImportProfile(event: Event) {
+		const file = (event.target as HTMLInputElement).files?.[0];
+		if (!file) return;
+		const reader = new FileReader();
+		reader.onload = (e) => {
+			const text = e.target?.result as string;
+			if (vowelProfiles.importProfile(text)) {
+				// Select the newly imported profile (last one)
+				const profiles = $vowelProfiles;
+				selectedProfileId = profiles[profiles.length - 1].id;
+			}
+		};
+		reader.readAsText(file);
+	}
 
-	const innerLinePoints = $derived(
-		innerLines.map((line) =>
-			line
-				.map((ipa) => {
-					const v = STANDARD_VOWELS.find((v) => v.ipa === ipa);
-					return v ? `${scaleX(v.f2)},${scaleY(v.f1)}` : '';
-				})
-				.filter(Boolean)
-				.join(' ')
-		)
-	);
+	function handleDeleteProfile() {
+		if (confirm('Are you sure you want to delete this profile?')) {
+			vowelProfiles.remove(selectedProfileId);
+			selectedProfileId = 'standard';
+		}
+	}
 </script>
 
 <div class="mx-auto max-w-4xl space-y-8 px-6 py-12">
 	<div class="space-y-4">
-		<div class="flex items-center gap-3">
-			<div class="rounded-lg bg-blue-100 p-2 text-blue-600">
-				<IconChartScatterPlot class="h-6 w-6" />
+		<div class="flex flex-wrap items-center justify-between gap-4">
+			<div class="flex items-center gap-3">
+				<div class="rounded-lg bg-blue-100 p-2 text-blue-600">
+					<IconChartScatterPlot class="h-6 w-6" />
+				</div>
+				<h1 class="text-3xl font-bold text-gray-900">{m.vowel_plotter_home_title()}</h1>
 			</div>
-			<h1 class="text-3xl font-bold text-gray-900">{m.vowel_plotter_home_title()}</h1>
+			<div class="flex items-center gap-2">
+				<select
+					bind:value={selectedProfileId}
+					class="rounded-lg border-gray-300 text-sm font-semibold text-gray-700 focus:border-blue-500 focus:ring-blue-500"
+				>
+					<option value="standard">Standard IPA</option>
+					{#each $vowelProfiles as profile}
+						<option value={profile.id}>{profile.name}</option>
+					{/each}
+				</select>
+				{#if selectedProfileId !== 'standard'}
+					<button
+						onclick={handleExportProfile}
+						class="rounded-lg border border-gray-300 p-2 text-gray-600 hover:bg-gray-50"
+						title="Export Profile"
+					>
+						<IconDownload />
+					</button>
+					<a
+						href="/vowel-plotter/wizard?profileId={selectedProfileId}"
+						class="rounded-lg border border-gray-300 p-2 text-gray-600 hover:bg-gray-50"
+						title={m.wizard_edit_manual()}
+					>
+						<IconPencil />
+					</a>
+					<button
+						onclick={handleDeleteProfile}
+						class="rounded-lg border border-gray-300 p-2 text-red-600 hover:bg-red-50"
+						title="Delete Profile"
+					>
+						<IconDelete />
+					</button>
+				{/if}
+				<label
+					class="cursor-pointer rounded-lg border border-gray-300 p-2 text-gray-600 hover:bg-gray-50"
+					title="Import Profile"
+				>
+					<input type="file" accept=".json" class="hidden" onchange={handleImportProfile} />
+					<IconUpload />
+				</label>
+				<a
+					href="/vowel-plotter/wizard"
+					class="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+				>
+					<IconPlus /> New Profile
+				</a>
+			</div>
 		</div>
 		<p class="text-gray-600">
 			{m.vp_description()}
@@ -167,118 +212,11 @@
 				<input type="checkbox" id="draw-trapezium" bind:checked={drawTrapezium} />
 				{m.vp_draw_trapezium()}
 			</label>
-			<div class="relative w-full overflow-hidden rounded-xl bg-gray-50">
-				<svg viewBox={`0 0 ${width} ${height}`} class="w-full">
-					<!-- Grid lines -->
-					{#each [200, 300, 400, 500, 600, 700, 800, 900] as f1}
-						<line
-							x1={padding}
-							y1={scaleY(f1)}
-							x2={width - padding}
-							y2={scaleY(f1)}
-							stroke="#e5e7eb"
-							stroke-width="1"
-							stroke-dasharray="4 4"
-						/>
-						<text
-							x={padding - 5}
-							y={scaleY(f1)}
-							text-anchor="end"
-							dominant-baseline="middle"
-							class="fill-gray-400 text-[10px]">{f1}</text
-						>
-					{/each}
-					{#each [500, 1000, 1500, 2000, 2500] as f2}
-						<line
-							x1={scaleX(f2)}
-							y1={padding}
-							x2={scaleX(f2)}
-							y2={height - padding}
-							stroke="#e5e7eb"
-							stroke-width="1"
-							stroke-dasharray="4 4"
-						/>
-						<text
-							x={scaleX(f2)}
-							y={height - padding + 15}
-							text-anchor="middle"
-							class="fill-gray-400 text-[10px]">{f2}</text
-						>
-					{/each}
-
-					<!-- Axis Labels -->
-					<text
-						x={width / 2}
-						y={height - 5}
-						text-anchor="middle"
-						class="fill-gray-500 text-xs font-semibold">{m.vp_axis_f2()}</text
-					>
-					<text
-						x={10}
-						y={height / 2}
-						text-anchor="middle"
-						transform={`rotate(-90, 10, ${height / 2})`}
-						class="fill-gray-500 text-xs font-semibold">{m.vp_axis_f1()}</text
-					>
-
-					<!-- Vowel Trapezium -->
-					{#if drawTrapezium}
-						<polygon
-							points={trapeziumPoints}
-							fill="none"
-							stroke="#d1d5db"
-							stroke-width="2"
-							stroke-linejoin="round"
-							class="opacity-50"
-						/>
-
-						<!-- Inner Vowel Lines -->
-						{#each innerLinePoints as points}
-							<polyline
-								{points}
-								fill="none"
-								stroke="#d1d5db"
-								stroke-width="1"
-								stroke-linejoin="round"
-								class="opacity-50"
-							/>
-						{/each}
-					{/if}
-
-					<!-- Standard Vowels -->
-					{#each STANDARD_VOWELS as vowel}
-						<circle cx={scaleX(vowel.f2)} cy={scaleY(vowel.f1)} r="4" class="fill-gray-300" />
-						<text
-							x={scaleX(vowel.f2)}
-							y={scaleY(vowel.f1) - 8}
-							text-anchor="middle"
-							class="fill-gray-600 text-sm font-bold">{vowel.ipa}</text
-						>
-					{/each}
-
-					<!-- User Result -->
-					{#if result}
-						<circle
-							cx={scaleX(result.averages.f2)}
-							cy={scaleY(result.averages.f1)}
-							r="6"
-							class="fill-blue-600"
-						/>
-						<circle
-							cx={scaleX(result.averages.f2)}
-							cy={scaleY(result.averages.f1)}
-							r="10"
-							class="animate-pulse fill-blue-600/30"
-						/>
-						<text
-							x={scaleX(result.averages.f2)}
-							y={scaleY(result.averages.f1) - 12}
-							text-anchor="middle"
-							class="fill-blue-600 text-sm font-bold">{m.vp_you_marker()}</text
-						>
-					{/if}
-				</svg>
-			</div>
+			<VowelChart
+				standardVowels={activeVowels}
+				userVowel={result ? result.averages : null}
+				showTrapezium={drawTrapezium}
+			/>
 		</div>
 	</div>
 </div>
