@@ -9,7 +9,7 @@
 </script>
 
 <svelte:head>
-	<title>{page.data.metadata.title} | PhonoCoffer 韻匣</title>
+	<title>{page.data.metadata?.title || 'Untitled'} | PhonoCoffer 韻匣</title>
 </svelte:head>
 
 <header
@@ -19,7 +19,14 @@
 		<a href="/" class="text-sm font-semibold tracking-wide text-blue-600 uppercase"
 			>PhonoCoffer 韻匣</a
 		>
-		<h1 class="text-2xl font-bold text-black">{page.data.metadata.title}</h1>
+		<div class="flex items-center gap-4">
+			<h1 class="text-2xl font-bold text-black">{page.data.metadata.title}</h1>
+			{#if page.url.pathname !== '/vowel-plotter'}
+				<a href="/vowel-plotter" class="text-sm font-semibold text-gray-500 hover:text-blue-600">
+					{m.vowel_plotter_home_title()}
+				</a>
+			{/if}
+		</div>
 	</div>
 
 	<label

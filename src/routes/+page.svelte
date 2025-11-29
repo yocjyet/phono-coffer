@@ -1,6 +1,36 @@
 <script lang="ts">
 	import { m } from '$lib/paraglide/messages';
 	import minimalPairsShot from '$lib/assets/screenshots/minimal-pairs.png';
+	import IconChartScatterPlot from '~icons/mdi/chart-scatter-plot';
+
+	type Tool = {
+		title: string;
+		description: string;
+		href: string;
+		ctaPrimary: string;
+		ctaSecondary: string;
+		image?: string;
+		icon?: any;
+	};
+
+	const availableTools: Tool[] = [
+		{
+			title: m.minimal_pair_home_title(),
+			description: m.minimal_pair_home_description(),
+			href: '/minimal-pair',
+			ctaPrimary: m.minimal_pair_cta(),
+			ctaSecondary: '',
+			image: minimalPairsShot
+		},
+		{
+			title: m.vowel_plotter_home_title(),
+			description: m.vowel_plotter_home_description(),
+			href: '/vowel-plotter',
+			ctaPrimary: m.vowel_plotter_cta(),
+			ctaSecondary: '',
+			icon: IconChartScatterPlot
+		}
+	];
 
 	type UpcomingTool = {
 		title: string;
@@ -70,31 +100,40 @@
 
 <div class="bg-linear-to-b from-gray-50 to-white">
 	<div class="mx-auto max-w-6xl space-y-12 px-6 py-14">
-		<section
-			class="grid items-center gap-8 rounded-3xl border border-gray-200 bg-white/80 p-8 shadow-sm md:grid-cols-2"
-		>
-			<div class="space-y-4">
-				<h1 class="text-3xl font-bold text-gray-900">{m.home_hero_title()}</h1>
-				<p class="text-gray-600">{m.home_hero_description()}</p>
-				<div class="flex flex-wrap gap-3">
-					<a
-						href="/minimal-pair"
-						class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
-					>
-						<span>{m.home_primary_cta()}</span>
-					</a>
-					<a
-						href="#tools"
-						class="inline-flex items-center gap-2 rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:border-blue-500 hover:text-blue-600"
-					>
-						<span>{m.home_secondary_cta()}</span>
-					</a>
+		{#each availableTools as tool}
+			<section
+				class="grid items-center gap-8 rounded-3xl border border-gray-200 bg-white/80 p-8 shadow-sm md:grid-cols-2"
+			>
+				<div class="space-y-4">
+					<h1 class="text-3xl font-bold text-gray-900">{tool.title}</h1>
+					<p class="text-gray-600">{tool.description}</p>
+					<div class="flex flex-wrap gap-3">
+						<a
+							href={tool.href}
+							class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
+						>
+							<span>{tool.ctaPrimary}</span>
+						</a>
+						<!-- <a
+							href="#tools"
+							class="inline-flex items-center gap-2 rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:border-blue-500 hover:text-blue-600"
+						>
+							<span>{tool.ctaSecondary}</span>
+						</a> -->
+					</div>
 				</div>
-			</div>
-			<a href="/minimal-pair" class="overflow-hidden rounded-2xl border border-gray-200 shadow-sm">
-				<img src={minimalPairsShot} alt={m.home_screenshot_alt()} class="block w-full" />
-			</a>
-		</section>
+				<a
+					href={tool.href}
+					class="flex aspect-video items-center justify-center overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 shadow-sm"
+				>
+					{#if tool.image}
+						<img src={tool.image} alt={tool.title} class="block h-full w-full object-cover" />
+					{:else if tool.icon}
+						<tool.icon class="h-24 w-24 text-gray-300" />
+					{/if}
+				</a>
+			</section>
+		{/each}
 
 		<section
 			id="tools"
