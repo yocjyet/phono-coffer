@@ -23,7 +23,7 @@
 	let result = $state<ParsedResult | null>(null);
 	let error = $state('');
 	let selectedProfileId = $state('standard');
-	let inputMode = $state<'praat' | 'mic'>('praat');
+	let inputMode = $state<'praat' | 'mic'>('mic');
 
 	const activeVowels = $derived(
 		selectedProfileId === 'standard'
@@ -160,20 +160,20 @@
 		<div class="space-y-4">
 			<div class="flex gap-2 border-b border-gray-200">
 				<button
-					onclick={() => (inputMode = 'praat')}
-					class="px-4 py-2 text-sm font-semibold transition-colors {inputMode === 'praat'
-						? 'border-b-2 border-blue-600 text-blue-600'
-						: 'text-gray-500 hover:text-gray-700'}"
-				>
-					{m.vp_tab_praat()}
-				</button>
-				<button
 					onclick={() => (inputMode = 'mic')}
 					class="px-4 py-2 text-sm font-semibold transition-colors {inputMode === 'mic'
 						? 'border-b-2 border-blue-600 text-blue-600'
 						: 'text-gray-500 hover:text-gray-700'}"
 				>
 					{m.vp_tab_mic()}
+				</button>
+				<button
+					onclick={() => (inputMode = 'praat')}
+					class="px-4 py-2 text-sm font-semibold transition-colors {inputMode === 'praat'
+						? 'border-b-2 border-blue-600 text-blue-600'
+						: 'text-gray-500 hover:text-gray-700'}"
+				>
+					{m.vp_tab_praat()}
 				</button>
 			</div>
 
@@ -198,7 +198,7 @@
 						</button>
 					</div>
 				{:else}
-					<VowelRecorder onAccept={handleVoiceResult} autoConfirm={true} />
+					<VowelRecorder onAccept={handleVoiceResult} autoConfirm={true} showChart={false} />
 				{/if}
 				{#if error}
 					<p class="mt-2 text-sm text-red-600">{error}</p>

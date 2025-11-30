@@ -6,22 +6,26 @@
 	import IconCheck from '~icons/mdi/check';
 	import IconRefresh from '~icons/mdi/refresh';
 	import VowelChart from '$lib/components/VowelChart.svelte';
+	import Waveform from '$lib/components/Waveform.svelte';
 	import type { VowelDefinition } from '$lib/vowel-plotter';
 
 	let {
 		targetVowel,
 		autoConfirm = false,
+		showChart = true,
 		onAccept,
 		onCancel
 	}: {
 		targetVowel?: VowelDefinition;
 		autoConfirm?: boolean;
+		showChart?: boolean;
 		onAccept: (f1: number, f2: number) => void;
 		onCancel?: () => void;
 	} = $props();
 
 	let isRecording = $state(false);
 	let mediaRecorder: MediaRecorder | null = null;
+	let stream: MediaStream | null = $state(null);
 	let audioChunks: Blob[] = [];
 	let currentAnalysis = $state<{ f1: number; f2: number } | null>(null);
 	let error = $state('');
@@ -29,8 +33,9 @@
 
 	async function startRecording() {
 		try {
-			const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-			mediaRecorder = new MediaRecorder(stream);
+			const mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+			stream = mediaStream;
+			mediaRecorder = new MediaRecorder(mediaStream);
 			audioChunks = [];
 
 			mediaRecorder.ondataavailable = (event) => {
@@ -40,7 +45,8 @@
 			mediaRecorder.onstop = async () => {
 				const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
 				await analyzeAudio(audioBlob);
-				stream.getTracks().forEach((track) => track.stop());
+				stream?.getTracks().forEach((track) => track.stop());
+				stream = null;
 			};
 
 			mediaRecorder.start();
@@ -97,17 +103,19 @@
 		{/if}
 	</div>
 
-	<div class="mx-auto max-w-md">
-		<VowelChart
-			width={400}
-			height={300}
-			highlightVowel={targetVowel?.ipa}
-			userVowel={currentAnalysis}
-			showTrapezium={true}
-		/>
-	</div>
+	{#if showChart}
+		<div class="mx-auto max-w-md">
+			<VowelChart
+				width={400}
+				height={300}
+				highlightVowel={targetVowel?.ipa}
+				userVowel={currentAnalysis}
+				showTrapezium={true}
+			/>
+		</div>
+	{/if}
 
-	<div class="flex justify-center">
+	<div class="relative mt-16 flex justify-center">
 		{#if !isRecording && !currentAnalysis && !processing}
 			<button
 				onclick={startRecording}
@@ -124,6 +132,9 @@
 				<IconStop class="h-8 w-8" />
 				<span class="text-xs font-semibold">{m.wizard_stop_btn()}</span>
 			</button>
+			<div class="absolute -top-16 left-1/2 h-12 w-48 -translate-x-1/2 rounded-lg bg-gray-100 p-2">
+				<Waveform {stream} />
+			</div>
 		{:else if processing}
 			<div class="flex h-24 w-24 items-center justify-center rounded-full bg-gray-100">
 				<div
