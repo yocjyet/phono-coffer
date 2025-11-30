@@ -6,24 +6,15 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
-	import IconMicrophone from '~icons/mdi/microphone';
-	import IconStop from '~icons/mdi/stop';
-	import IconCheck from '~icons/mdi/check';
 	import IconRefresh from '~icons/mdi/refresh';
 	import IconArrowRight from '~icons/mdi/arrow-right';
 	import IconArrowLeft from '~icons/mdi/arrow-left';
 	import IconPencil from '~icons/mdi/pencil';
-	import VowelChart from '$lib/components/VowelChart.svelte';
+	import VowelRecorder from '$lib/components/VowelRecorder.svelte';
 
 	let step = $state(0); // 0: Name, 1..N: Vowels, N+1: Review
 	let profileName = $state('');
 	let recordings = $state<Record<string, { f1: number; f2: number }>>({});
-	let isRecording = $state(false);
-	let mediaRecorder: MediaRecorder | null = null;
-	let audioChunks: Blob[] = [];
-	let currentAnalysis = $state<{ f1: number; f2: number } | null>(null);
-	let error = $state('');
-	let processing = $state(false);
 
 	const vowelsToRecord = STANDARD_VOWELS; // Record all standard vowels
 
@@ -46,69 +37,18 @@
 		}
 	});
 
-	async function startRecording() {
-		try {
-			const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-			mediaRecorder = new MediaRecorder(stream);
-			audioChunks = [];
+	function handleRecordingComplete(f1: number, f2: number) {
+		const vowel = vowelsToRecord[step - 1];
+		recordings[vowel.ipa] = { f1, f2 };
 
-			mediaRecorder.ondataavailable = (event) => {
-				audioChunks.push(event.data);
-			};
-
-			mediaRecorder.onstop = async () => {
-				const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-				await analyzeAudio(audioBlob);
-				stream.getTracks().forEach((track) => track.stop());
-			};
-
-			mediaRecorder.start();
-			isRecording = true;
-			error = '';
-		} catch (e) {
-			console.error('Error starting recording:', e);
-			error = m.vp_error_parse();
-		}
-	}
-
-	function stopRecording() {
-		if (mediaRecorder && isRecording) {
-			mediaRecorder.stop();
-			isRecording = false;
-		}
-	}
-
-	async function analyzeAudio(blob: Blob) {
-		processing = true;
-		try {
-			const arrayBuffer = await blob.arrayBuffer();
-			const audioContext = new AudioContext();
-			const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-			const formants = await estimateFormants(audioBuffer);
-			currentAnalysis = formants;
-		} catch (e) {
-			console.error('Analysis failed:', e);
-			error = m.vp_error_generic();
-		} finally {
-			processing = false;
-		}
-	}
-
-	function acceptRecording() {
-		if (currentAnalysis) {
-			const vowel = vowelsToRecord[step - 1];
-			recordings[vowel.ipa] = currentAnalysis;
-			currentAnalysis = null;
-
-			// If we are re-recording (i.e., we jumped back from review), check if we should go back to review
-			// Simple heuristic: if we have recordings for all vowels, go to review (step = N + 1)
-			// Otherwise, go to next step
-			const allRecorded = vowelsToRecord.every((v) => recordings[v.ipa]);
-			if (allRecorded) {
-				step = vowelsToRecord.length + 1;
-			} else {
-				nextStep();
-			}
+		// If we are re-recording (i.e., we jumped back from review), check if we should go back to review
+		// Simple heuristic: if we have recordings for all vowels, go to review (step = N + 1)
+		// Otherwise, go to next step
+		const allRecorded = vowelsToRecord.every((v) => recordings[v.ipa]);
+		if (allRecorded) {
+			step = vowelsToRecord.length + 1;
+		} else {
+			nextStep();
 		}
 	}
 
@@ -184,87 +124,7 @@
 			</div>
 		{:else if step <= vowelsToRecord.length}
 			{@const vowel = vowelsToRecord[step - 1]}
-			<div class="space-y-8 text-center">
-				<div>
-					<p class="text-sm tracking-wide text-gray-500 uppercase">{m.wizard_recording_vowel()}</p>
-					<h2 class="mt-2 text-6xl font-bold text-gray-900">/{vowel.ipa}/</h2>
-				</div>
-
-				<div class="mx-auto max-w-md">
-					<VowelChart
-						width={400}
-						height={300}
-						highlightVowel={vowel.ipa}
-						userVowel={currentAnalysis}
-						showTrapezium={true}
-					/>
-				</div>
-
-				<div class="flex justify-center">
-					{#if !isRecording && !currentAnalysis && !processing}
-						<button
-							onclick={startRecording}
-							class="flex h-24 w-24 flex-col items-center justify-center gap-2 rounded-full bg-red-100 text-red-600 transition hover:bg-red-200"
-						>
-							<IconMicrophone class="h-8 w-8" />
-							<span class="text-xs font-semibold">{m.wizard_record_btn()}</span>
-						</button>
-					{:else if isRecording}
-						<button
-							onclick={stopRecording}
-							class="flex h-24 w-24 animate-pulse flex-col items-center justify-center gap-2 rounded-full bg-red-600 text-white"
-						>
-							<IconStop class="h-8 w-8" />
-							<span class="text-xs font-semibold">{m.wizard_stop_btn()}</span>
-						</button>
-					{:else if processing}
-						<div class="flex h-24 w-24 items-center justify-center rounded-full bg-gray-100">
-							<div
-								class="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent"
-							></div>
-						</div>
-					{:else if currentAnalysis}
-						<div class="space-y-4">
-							<div class="grid grid-cols-2 gap-4 text-left">
-								<div class="rounded-lg bg-gray-50 p-3">
-									<p class="text-xs text-gray-500">{m.wizard_detected_f1()}</p>
-									<p class="font-mono text-xl font-bold text-gray-900">
-										{currentAnalysis.f1.toFixed(0)} Hz
-									</p>
-								</div>
-								<div class="rounded-lg bg-gray-50 p-3">
-									<p class="text-xs text-gray-500">{m.wizard_detected_f2()}</p>
-									<p class="font-mono text-xl font-bold text-gray-900">
-										{currentAnalysis.f2.toFixed(0)} Hz
-									</p>
-								</div>
-							</div>
-							<div class="flex justify-center gap-3">
-								<button
-									onclick={() => {
-										currentAnalysis = null;
-									}}
-									class="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-								>
-									<IconRefresh />
-									{m.wizard_retry_btn()}
-								</button>
-								<button
-									onclick={acceptRecording}
-									class="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700"
-								>
-									<IconCheck />
-									{m.wizard_accept_btn()}
-								</button>
-							</div>
-						</div>
-					{/if}
-				</div>
-
-				{#if error}
-					<p class="text-sm text-red-600">{error}</p>
-				{/if}
-			</div>
+			<VowelRecorder targetVowel={vowel} onAccept={handleRecordingComplete} />
 		{:else}
 			<div class="space-y-6">
 				<h2 class="text-xl font-bold text-gray-900">
@@ -322,7 +182,6 @@
 										<button
 											onclick={() => {
 												step = i + 1;
-												currentAnalysis = null;
 											}}
 											class="inline-flex items-center gap-1 rounded text-blue-600 hover:text-blue-800"
 										>

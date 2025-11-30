@@ -110,7 +110,7 @@
 						<IconDownload />
 					</button>
 					<a
-						href="/vowel-plotter/wizard?profileId={selectedProfileId}"
+						href="/vowel-plotter/profile/{selectedProfileId}"
 						class="rounded-lg border border-gray-300 p-2 text-gray-600 hover:bg-gray-50"
 						title={m.wizard_edit_manual()}
 					>

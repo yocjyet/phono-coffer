@@ -20,7 +20,7 @@
 			>PhonoCoffer 韻匣</a
 		>
 		<div class="flex items-center gap-4">
-			<h1 class="text-2xl font-bold text-black">{page.data.metadata.title}</h1>
+			<h1 class="text-2xl font-bold text-black">{page.data.metadata?.title || 'Untitled'}</h1>
 			{#if page.url.pathname !== '/vowel-plotter'}
 				<a href="/vowel-plotter" class="text-sm font-semibold text-gray-500 hover:text-blue-600">
 					{m.vowel_plotter_home_title()}
