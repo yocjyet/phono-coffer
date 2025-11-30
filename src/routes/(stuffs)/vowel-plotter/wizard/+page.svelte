@@ -124,7 +124,7 @@
 			</div>
 		{:else if step <= vowelsToRecord.length}
 			{@const vowel = vowelsToRecord[step - 1]}
-			<VowelRecorder targetVowel={vowel} onAccept={handleRecordingComplete} />
+			<VowelRecorder targetVowel={vowel} onAccept={handleRecordingComplete} autoConfirm={true} />
 		{:else}
 			<div class="space-y-6">
 				<h2 class="text-xl font-bold text-gray-900">

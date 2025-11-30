@@ -45,7 +45,7 @@ export type ParsedResult = {
     f3: number;
   };
   closestVowel: VowelDefinition;
-  dataPoints: FormantData[];
+  dataPoints?: FormantData[];
 };
 
 export function parsePraatData(input: string): ParsedResult | null {
@@ -101,11 +101,15 @@ export function parsePraatData(input: string): ParsedResult | null {
   };
 }
 
-export function findClosestVowel(f1: number, f2: number): VowelDefinition {
+export function findClosestVowel(
+  f1: number,
+  f2: number,
+  vowels: VowelDefinition[] = STANDARD_VOWELS
+): VowelDefinition {
   let minDistance = Infinity;
-  let closest = STANDARD_VOWELS[0];
+  let closest = vowels[0];
 
-  for (const vowel of STANDARD_VOWELS) {
+  for (const vowel of vowels) {
     // Euclidean distance in F1-F2 space
     // Often F2 difference is perceptually less significant per Hz than F1, 
     // but for simple closest match, Euclidean is a standard starting point.

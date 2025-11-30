@@ -10,10 +10,12 @@
 
 	let {
 		targetVowel,
+		autoConfirm = false,
 		onAccept,
 		onCancel
 	}: {
-		targetVowel: VowelDefinition;
+		targetVowel?: VowelDefinition;
+		autoConfirm?: boolean;
 		onAccept: (f1: number, f2: number) => void;
 		onCancel?: () => void;
 	} = $props();
@@ -64,7 +66,11 @@
 			const audioContext = new AudioContext();
 			const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
 			const formants = await estimateFormants(audioBuffer);
-			currentAnalysis = formants;
+			if (autoConfirm) {
+				onAccept(formants.f1, formants.f2);
+			} else {
+				currentAnalysis = formants;
+			}
 		} catch (e) {
 			console.error('Analysis failed:', e);
 			error = m.vp_error_generic();
@@ -83,15 +89,19 @@
 
 <div class="space-y-8 text-center">
 	<div>
-		<p class="text-sm tracking-wide text-gray-500 uppercase">{m.wizard_recording_vowel()}</p>
-		<h2 class="mt-2 text-6xl font-bold text-gray-900">/{targetVowel.ipa}/</h2>
+		{#if targetVowel}
+			<p class="text-sm tracking-wide text-gray-500 uppercase">{m.wizard_recording_vowel()}</p>
+			<h2 class="mt-2 text-6xl font-bold text-gray-900">/{targetVowel.ipa}/</h2>
+		{:else}
+			<h2 class="mt-2 text-4xl font-bold text-gray-900">{m.vp_recording_title()}</h2>
+		{/if}
 	</div>
 
 	<div class="mx-auto max-w-md">
 		<VowelChart
 			width={400}
 			height={300}
-			highlightVowel={targetVowel.ipa}
+			highlightVowel={targetVowel?.ipa}
 			userVowel={currentAnalysis}
 			showTrapezium={true}
 		/>

@@ -9,17 +9,21 @@
 	import { vowelProfiles } from '$lib/stores/vowel-profiles';
 	import IconChartScatterPlot from '~icons/mdi/chart-scatter-plot';
 	import IconContentPaste from '~icons/mdi/content-paste';
+	import IconMicrophone from '~icons/mdi/microphone';
 	import IconPlus from '~icons/mdi/plus';
 	import IconDownload from '~icons/mdi/download';
 	import IconUpload from '~icons/mdi/upload';
 	import IconDelete from '~icons/mdi/delete';
 	import IconPencil from '~icons/mdi/pencil';
 	import VowelChart from '$lib/components/VowelChart.svelte';
+	import VowelRecorder from '$lib/components/VowelRecorder.svelte';
+	import { findClosestVowel } from '$lib/vowel-plotter';
 
 	let inputData = $state('');
 	let result = $state<ParsedResult | null>(null);
 	let error = $state('');
 	let selectedProfileId = $state('standard');
+	let inputMode = $state<'praat' | 'mic'>('praat');
 
 	const activeVowels = $derived(
 		selectedProfileId === 'standard'
@@ -79,6 +83,14 @@
 			vowelProfiles.remove(selectedProfileId);
 			selectedProfileId = 'standard';
 		}
+	}
+
+	function handleVoiceResult(f1: number, f2: number) {
+		const closest = findClosestVowel(f1, f2, activeVowels);
+		result = {
+			averages: { f1, f2, f3: 0 }, // F3 is not estimated by our simple LPC
+			closestVowel: closest
+		};
 	}
 </script>
 
@@ -146,25 +158,48 @@
 
 	<div class="grid gap-8 lg:grid-cols-2">
 		<div class="space-y-4">
+			<div class="flex gap-2 border-b border-gray-200">
+				<button
+					onclick={() => (inputMode = 'praat')}
+					class="px-4 py-2 text-sm font-semibold transition-colors {inputMode === 'praat'
+						? 'border-b-2 border-blue-600 text-blue-600'
+						: 'text-gray-500 hover:text-gray-700'}"
+				>
+					{m.vp_tab_praat()}
+				</button>
+				<button
+					onclick={() => (inputMode = 'mic')}
+					class="px-4 py-2 text-sm font-semibold transition-colors {inputMode === 'mic'
+						? 'border-b-2 border-blue-600 text-blue-600'
+						: 'text-gray-500 hover:text-gray-700'}"
+				>
+					{m.vp_tab_mic()}
+				</button>
+			</div>
+
 			<div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-				<label for="praat-data" class="mb-2 block text-sm font-semibold text-gray-700">
-					{m.vp_input_label()}
-				</label>
-				<textarea
-					id="praat-data"
-					bind:value={inputData}
-					placeholder="Time_s   F1_Hz   F2_Hz   F3_Hz   F4_Hz&#10;0.580465   564.537559   1596.781229   2332.062939   3454.391843..."
-					class="h-64 w-full rounded-xl border-gray-300 font-mono text-sm focus:border-blue-500 focus:ring-blue-500"
-				></textarea>
-				<div class="mt-4 flex justify-end">
-					<button
-						onclick={handleAnalyze}
-						class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none"
-					>
-						<IconContentPaste class="h-4 w-4" />
-						{m.vp_analyze_button()}
-					</button>
-				</div>
+				{#if inputMode === 'praat'}
+					<label for="praat-data" class="mb-2 block text-sm font-semibold text-gray-700">
+						{m.vp_input_label()}
+					</label>
+					<textarea
+						id="praat-data"
+						bind:value={inputData}
+						placeholder="Time_s   F1_Hz   F2_Hz   F3_Hz   F4_Hz&#10;0.580465   564.537559   1596.781229   2332.062939   3454.391843..."
+						class="h-64 w-full rounded-xl border-gray-300 font-mono text-sm focus:border-blue-500 focus:ring-blue-500"
+					></textarea>
+					<div class="mt-4 flex justify-end">
+						<button
+							onclick={handleAnalyze}
+							class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none"
+						>
+							<IconContentPaste class="h-4 w-4" />
+							{m.vp_analyze_button()}
+						</button>
+					</div>
+				{:else}
+					<VowelRecorder onAccept={handleVoiceResult} autoConfirm={true} />
+				{/if}
 				{#if error}
 					<p class="mt-2 text-sm text-red-600">{error}</p>
 				{/if}

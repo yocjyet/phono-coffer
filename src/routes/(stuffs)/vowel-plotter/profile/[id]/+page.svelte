@@ -167,6 +167,7 @@
 					targetVowel={recordingVowel}
 					onAccept={handleRecordingComplete}
 					onCancel={() => (recordingVowel = null)}
+					autoConfirm={true}
 				/>
 			</div>
 		</div>
