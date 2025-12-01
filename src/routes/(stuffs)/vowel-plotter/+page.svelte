@@ -18,12 +18,53 @@
 	import VowelChart from '$lib/components/VowelChart.svelte';
 	import VowelRecorder from '$lib/components/VowelRecorder.svelte';
 	import { findClosestVowel } from '$lib/vowel-plotter';
+	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
+	import { browser } from '$app/environment';
 
 	let inputData = $state('');
 	let result = $state<ParsedResult | null>(null);
 	let error = $state('');
 	let selectedProfileId = $state('standard');
 	let inputMode = $state<'praat' | 'mic'>('mic');
+	let showProfileModal = $state(false);
+	let dontShowAgain = $state(false);
+
+	onMount(() => {
+		const remembered = localStorage.getItem('vp_profile_choice_remembered');
+		if (!remembered && inputMode === 'mic') {
+			showProfileModal = true;
+		}
+	});
+
+	function handleCreateProfile() {
+		if (dontShowAgain) {
+			localStorage.setItem('vp_profile_choice_remembered', 'true');
+		}
+		goto('/vowel-plotter/wizard');
+	}
+
+	function handleUseExisting() {
+		if (dontShowAgain) {
+			localStorage.setItem('vp_profile_choice_remembered', 'true');
+		}
+		showProfileModal = false;
+	}
+
+	function handleResetChoice() {
+		localStorage.removeItem('vp_profile_choice_remembered');
+		showProfileModal = true;
+	}
+
+	// Watch inputMode change to show modal if not remembered
+	$effect(() => {
+		if (inputMode === 'mic') {
+			const remembered = localStorage.getItem('vp_profile_choice_remembered');
+			if (!remembered) {
+				showProfileModal = true;
+			}
+		}
+	});
 
 	const activeVowels = $derived(
 		selectedProfileId === 'standard'
@@ -150,6 +191,14 @@
 					<IconPlus />
 					{m.vp_add_profile()}
 				</a>
+				{#if browser && localStorage.getItem('vp_profile_choice_remembered')}
+					<button
+						onclick={handleResetChoice}
+						class="text-xs text-gray-400 underline hover:text-gray-600"
+					>
+						{m.vp_profile_reset_choice()}
+					</button>
+				{/if}
 			</div>
 		</div>
 		<p class="text-gray-600">
@@ -256,3 +305,37 @@
 		</div>
 	</div>
 </div>
+
+{#if showProfileModal}
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+		<div class="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl">
+			<h2 class="text-xl font-bold text-gray-900">{m.vp_profile_modal_title()}</h2>
+			<p class="mt-2 text-gray-600">
+				{m.vp_profile_modal_desc()}
+			</p>
+
+			<div class="mt-6 flex flex-col gap-3">
+				<button
+					onclick={handleCreateProfile}
+					class="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 font-semibold text-white hover:bg-blue-700"
+				>
+					<IconPlus />
+					{m.vp_profile_modal_create()}
+				</button>
+				<button
+					onclick={handleUseExisting}
+					class="w-full rounded-xl border border-gray-300 px-4 py-3 font-semibold text-gray-700 hover:bg-gray-50"
+				>
+					{m.vp_profile_modal_existing()}
+				</button>
+			</div>
+
+			<div class="mt-4 flex items-center justify-center">
+				<label class="flex items-center gap-2 text-sm text-gray-500">
+					<input type="checkbox" bind:checked={dontShowAgain} class="rounded border-gray-300" />
+					{m.vp_profile_modal_remember()}
+				</label>
+			</div>
+		</div>
+	</div>
+{/if}
