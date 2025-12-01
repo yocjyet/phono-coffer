@@ -10,6 +10,7 @@
 	import IconContentSave from '~icons/mdi/content-save';
 	import IconDelete from '~icons/mdi/delete';
 	import VowelRecorder from '$lib/components/VowelRecorder.svelte';
+	import VowelChart from '$lib/components/VowelChart.svelte';
 
 	let profileId = $state('');
 	let profileName = $state('');
@@ -163,6 +164,14 @@
 			class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
 		>
 			<div class="w-full max-w-lg rounded-2xl bg-white p-8 shadow-xl">
+				<div class="mb-6 flex justify-center">
+					<VowelChart
+						width={400}
+						height={300}
+						highlightVowel={recordingVowel.ipa}
+						showTrapezium={true}
+					/>
+				</div>
 				<VowelRecorder
 					targetVowel={recordingVowel}
 					onAccept={handleRecordingComplete}

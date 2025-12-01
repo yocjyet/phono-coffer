@@ -10,11 +10,15 @@
 	import IconArrowRight from '~icons/mdi/arrow-right';
 	import IconArrowLeft from '~icons/mdi/arrow-left';
 	import IconPencil from '~icons/mdi/pencil';
+	import IconPlay from '~icons/mdi/play';
+	import IconCheck from '~icons/mdi/check';
 	import VowelRecorder from '$lib/components/VowelRecorder.svelte';
+	import VowelChart from '$lib/components/VowelChart.svelte';
+	import { fade, fly } from 'svelte/transition';
 
 	let step = $state(0); // 0: Name, 1..N: Vowels, N+1: Review
 	let profileName = $state('');
-	let recordings = $state<Record<string, { f1: number; f2: number }>>({});
+	let recordings = $state<Record<string, { f1: number; f2: number; url?: string }>>({});
 
 	const vowelsToRecord = STANDARD_VOWELS; // Record all standard vowels
 
@@ -37,9 +41,9 @@
 		}
 	});
 
-	function handleRecordingComplete(f1: number, f2: number) {
+	function handleRecordingComplete(f1: number, f2: number, url?: string) {
 		const vowel = vowelsToRecord[step - 1];
-		recordings[vowel.ipa] = { f1, f2 };
+		recordings[vowel.ipa] = { f1, f2, url };
 
 		// If we are re-recording (i.e., we jumped back from review), check if we should go back to review
 		// Simple heuristic: if we have recordings for all vowels, go to review (step = N + 1)
@@ -53,11 +57,48 @@
 	}
 
 	function nextStep() {
+		if (step === 0 && !profileName.trim()) {
+			profileName = `Profile ${new Date().toLocaleDateString()}`;
+		}
 		step++;
 	}
 
 	function prevStep() {
-		step--;
+		if (step > 1) {
+			step--;
+		} else {
+			step = 0;
+		}
+	}
+
+	function jumpToStep(s: number) {
+		// Allow jumping to any step if we are past the name step (step 0)
+		// or if we are at step 0 and have a name (or auto-generate one)
+		if (step === 0 && s > 0) {
+			if (!profileName.trim()) {
+				profileName = `Profile ${new Date().toLocaleDateString()}`;
+			}
+		}
+		step = s;
+	}
+
+	function handleKeydown(e: KeyboardEvent) {
+		if (e.key === 'Enter') {
+			// Prevent default if it's a form submission to avoid reload, though we don't have a form tag
+			// But mostly we want to trigger next step
+			// Only trigger if not on review step (which has Save button)
+			if (step <= vowelsToRecord.length) {
+				nextStep();
+			}
+		}
+	}
+
+	function playRecording(ipa: string) {
+		const rec = recordings[ipa];
+		if (rec && rec.url) {
+			const audio = new Audio(rec.url);
+			audio.play();
+		}
 	}
 
 	function saveProfile() {
@@ -84,6 +125,8 @@
 		goto('/vowel-plotter');
 	}
 </script>
+
+<svelte:window onkeydown={handleKeydown} />
 
 <div class="mx-auto max-w-2xl px-6 py-12">
 	<div class="mb-8">
@@ -114,7 +157,6 @@
 				<div class="flex justify-end">
 					<button
 						onclick={nextStep}
-						disabled={!profileName}
 						class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:opacity-50"
 					>
 						{m.wizard_next()}
@@ -124,7 +166,77 @@
 			</div>
 		{:else if step <= vowelsToRecord.length}
 			{@const vowel = vowelsToRecord[step - 1]}
-			<VowelRecorder targetVowel={vowel} onAccept={handleRecordingComplete} autoConfirm={true} />
+			{@const recordedVowels = Object.entries(recordings).map(([ipa, data]) => ({
+				f1: data.f1,
+				f2: data.f2,
+				label: ipa
+			}))}
+			<div class="mb-6 flex items-center justify-center gap-2">
+				{#each vowelsToRecord as v, i}
+					<button
+						onclick={() => jumpToStep(i + 1)}
+						class="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-colors hover:bg-gray-200 {step ===
+						i + 1
+							? 'bg-blue-600 text-white hover:bg-blue-700'
+							: recordings[v.ipa]
+								? 'bg-green-100 text-green-700'
+								: 'bg-gray-100 text-gray-400'}"
+					>
+						{v.ipa}
+					</button>
+				{/each}
+			</div>
+
+			<div class="mb-8 flex justify-center">
+				<div class="w-full max-w-md">
+					<VowelChart
+						width={400}
+						height={300}
+						highlightVowel={vowel.ipa}
+						userVowels={recordedVowels}
+						showTrapezium={true}
+					/>
+				</div>
+			</div>
+
+			{#key step}
+				<div in:fly={{ x: 20, duration: 300, delay: 300 }} out:fly={{ x: -20, duration: 300 }}>
+					<VowelRecorder
+						targetVowel={vowel}
+						onAccept={handleRecordingComplete}
+						autoConfirm={true}
+					/>
+				</div>
+			{/key}
+
+			<div class="mt-8 flex items-center justify-between">
+				<button
+					onclick={prevStep}
+					class="inline-flex items-center gap-2 rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+				>
+					<IconArrowLeft />
+					{m.wizard_prev()}
+				</button>
+
+				<div class="flex gap-2">
+					{#if recordings[vowel.ipa]?.url}
+						<button
+							onclick={() => playRecording(vowel.ipa)}
+							class="inline-flex items-center gap-2 rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+						>
+							<IconPlay />
+							{m.wizard_play()}
+						</button>
+					{/if}
+					<button
+						onclick={nextStep}
+						class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:opacity-50"
+					>
+						{m.wizard_next()}
+						<IconArrowRight />
+					</button>
+				</div>
+			</div>
 		{:else}
 			<div class="space-y-6">
 				<h2 class="text-xl font-bold text-gray-900">

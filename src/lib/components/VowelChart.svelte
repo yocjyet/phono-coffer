@@ -7,6 +7,7 @@
 		height = 400,
 		highlightVowel = '',
 		userVowel = null,
+		userVowels = [],
 		standardVowels = STANDARD_VOWELS,
 		showTrapezium = true,
 		showInnerLines = true
@@ -15,6 +16,7 @@
 		height?: number;
 		highlightVowel?: string;
 		userVowel?: { f1: number; f2: number } | null;
+		userVowels?: { f1: number; f2: number; label?: string }[];
 		standardVowels?: VowelDefinition[];
 		showTrapezium?: boolean;
 		showInnerLines?: boolean;

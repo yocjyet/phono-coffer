@@ -147,7 +147,8 @@
 					href="/vowel-plotter/wizard"
 					class="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700"
 				>
-					<IconPlus /> New Profile
+					<IconPlus />
+					{m.vp_add_profile()}
 				</a>
 			</div>
 		</div>
@@ -198,7 +199,7 @@
 						</button>
 					</div>
 				{:else}
-					<VowelRecorder onAccept={handleVoiceResult} autoConfirm={true} showChart={false} />
+					<VowelRecorder onAccept={handleVoiceResult} autoConfirm={true} />
 				{/if}
 				{#if error}
 					<p class="mt-2 text-sm text-red-600">{error}</p>
