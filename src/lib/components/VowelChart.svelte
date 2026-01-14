@@ -13,6 +13,9 @@
 		showTrapezium = true,
 		showInnerLines = true,
 		drawBasicVowels = true,
+
+		f1Domain = [200, 1200],
+		f2Domain = [500, 3000],
 		onChartClick
 	}: {
 		width?: number;
@@ -25,18 +28,31 @@
 		showTrapezium?: boolean;
 		showInnerLines?: boolean;
 		drawBasicVowels?: boolean;
+		f1Domain?: [number, number];
+		f2Domain?: [number, number];
 		onChartClick?: (f1: number, f2: number) => void;
 	} = $props();
 
 	const padding = 40;
 
-	// Scales (inverted for F1 and F2 as is standard in phonetics)
-	// F1 (y-axis): 200 - 900
-	// F2 (x-axis): 500 - 2500
-	const f1Min = 200;
-	const f1Max = 900;
-	const f2Min = 500;
-	const f2Max = 2500;
+	// Dynamic Scales
+	const f1Min = $derived(f1Domain[0]);
+	const f1Max = $derived(f1Domain[1]);
+	const f2Min = $derived(f2Domain[0]);
+	const f2Max = $derived(f2Domain[1]);
+
+	// Ticks Generation
+	function getTicks(min: number, max: number, step: number) {
+		const ticks = [];
+		const start = Math.ceil(min / step) * step;
+		for (let i = start; i <= max; i += step) {
+			ticks.push(i);
+		}
+		return ticks;
+	}
+
+	const f1Ticks = $derived(getTicks(f1Min, f1Max, 100));
+	const f2Ticks = $derived(getTicks(f2Min, f2Max, 500));
 
 	function scaleX(f2: number) {
 		// Inverted x-axis: high F2 on left, low F2 on right
@@ -174,7 +190,7 @@
 		</defs>
 
 		<!-- Grid lines -->
-		{#each [200, 300, 400, 500, 600, 700, 800, 900] as f1}
+		{#each f1Ticks as f1}
 			<line
 				x1={padding}
 				y1={scaleY(f1)}
@@ -192,7 +208,7 @@
 				class="fill-gray-400 text-[10px]">{f1}</text
 			>
 		{/each}
-		{#each [500, 1000, 1500, 2000, 2500] as f2}
+		{#each f2Ticks as f2}
 			<line
 				x1={scaleX(f2)}
 				y1={padding}

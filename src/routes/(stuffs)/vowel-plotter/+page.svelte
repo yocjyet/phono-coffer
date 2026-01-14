@@ -38,6 +38,11 @@
 	let vowelSequences = $state<{ id: string; vowelIds: string[]; color?: string }[]>([]);
 	let selectedVowelIds = $state<string[]>([]);
 
+	let axisLimits = $state({
+		f1: { min: 200, max: 900 },
+		f2: { min: 500, max: 2500 }
+	});
+
 	function addManualVowel(f1 = 500, f2 = 1500, label = '', color = '#16a34a') {
 		manualVowels.push({
 			id: crypto.randomUUID(),
@@ -620,20 +625,60 @@
 
 		<div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
 			<h3 class="mb-4 text-lg font-semibold text-gray-900">{m.vp_chart_title()}</h3>
-			<label
-				for="draw-trapezium"
-				class="mb-2 flex items-center gap-1 text-sm font-semibold text-gray-700"
-			>
-				<input type="checkbox" id="draw-trapezium" bind:checked={drawTrapezium} />
-				{m.vp_draw_trapezium()}
-			</label>
-			<label
-				for="hide-basic-vowels"
-				class="mb-2 flex items-center gap-1 text-sm font-semibold text-gray-700"
-			>
-				<input type="checkbox" id="hide-basic-vowels" bind:checked={drawBasicVowels} />
-				{m.vp_draw_basic_vowels()}
-			</label>
+
+			<details class="mb-4 rounded-lg border border-gray-200 bg-gray-50">
+				<summary class="cursor-pointer p-3 text-sm font-semibold text-gray-700"
+					>{m.vp_settings_title()}</summary
+				>
+				<div class="border-t border-gray-200 p-3">
+					<div class="mb-4 flex flex-col gap-2">
+						<label class="flex items-center gap-2 text-sm font-semibold text-gray-700">
+							<input type="checkbox" bind:checked={drawTrapezium} />
+							{m.vp_draw_trapezium()}
+						</label>
+						<label class="flex items-center gap-2 text-sm font-semibold text-gray-700">
+							<input type="checkbox" bind:checked={drawBasicVowels} />
+							{m.vp_draw_basic_vowels()}
+						</label>
+					</div>
+
+					<div class="grid grid-cols-2 gap-4">
+						<div>
+							<label class="block text-xs font-semibold text-gray-500">{m.vp_limit_f1_min()}</label>
+							<input
+								type="number"
+								bind:value={axisLimits.f1.min}
+								class="mt-1 w-full rounded border-gray-300 text-sm"
+							/>
+						</div>
+						<div>
+							<label class="block text-xs font-semibold text-gray-500">{m.vp_limit_f1_max()}</label>
+							<input
+								type="number"
+								bind:value={axisLimits.f1.max}
+								class="mt-1 w-full rounded border-gray-300 text-sm"
+							/>
+						</div>
+						<div>
+							<label class="block text-xs font-semibold text-gray-500">{m.vp_limit_f2_min()}</label>
+							<input
+								type="number"
+								bind:value={axisLimits.f2.min}
+								class="mt-1 w-full rounded border-gray-300 text-sm"
+							/>
+						</div>
+						<div>
+							<label class="block text-xs font-semibold text-gray-500">{m.vp_limit_f2_max()}</label>
+							<input
+								type="number"
+								bind:value={axisLimits.f2.max}
+								class="mt-1 w-full rounded border-gray-300 text-sm"
+							/>
+						</div>
+					</div>
+				</div>
+			</details>
+
 			<VowelChart
 				standardVowels={activeVowels}
 				userVowels={manualVowels}
@@ -641,6 +686,8 @@
 				bind:selectedVowelIds
 				showTrapezium={drawTrapezium}
 				{drawBasicVowels}
+				f1Domain={[axisLimits.f1.min, axisLimits.f1.max]}
+				f2Domain={[axisLimits.f2.min, axisLimits.f2.max]}
 				onChartClick={handleChartClick}
 			/>
 		</div>

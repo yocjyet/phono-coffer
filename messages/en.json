@@ -147,5 +147,10 @@
 	"spectrogram_hz_label": "Hz",
 	"vp_sequences_title": "Polyphthong Sequence",
 	"vp_drag_ungroup": "(Drag vowels out to ungroup)",
-	"vp_dissolve_sequence": "Dissolve Sequence"
+	"vp_dissolve_sequence": "Dissolve Sequence",
+	"vp_settings_title": "Chart Settings",
+	"vp_limit_f1_min": "Min F1",
+	"vp_limit_f1_max": "Max F1",
+	"vp_limit_f2_min": "Min F2",
+	"vp_limit_f2_max": "Max F2"
 }

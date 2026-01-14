@@ -147,5 +147,10 @@
 	"spectrogram_hz_label": "Hz",
 	"vp_sequences_title": "複元音序列",
 	"vp_drag_ungroup": "（拖拽元音移出序列）",
-	"vp_dissolve_sequence": "删除序列"
+	"vp_dissolve_sequence": "删除序列",
+	"vp_settings_title": "图表设置",
+	"vp_limit_f1_min": "最小 F1",
+	"vp_limit_f1_max": "最大 F1",
+	"vp_limit_f2_min": "最小 F2",
+	"vp_limit_f2_max": "最大 F2"
 }

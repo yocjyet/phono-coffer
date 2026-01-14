@@ -147,5 +147,10 @@
 	"spectrogram_hz_label": "Hz",
 	"vp_sequences_title": "複母音列",
 	"vp_drag_ungroup": "（ドラッグしてグループ解除）",
-	"vp_dissolve_sequence": "配列を削除"
+	"vp_dissolve_sequence": "配列を削除",
+	"vp_settings_title": "グラフ設定",
+	"vp_limit_f1_min": "F1 最小値",
+	"vp_limit_f1_max": "F1 最大値",
+	"vp_limit_f2_min": "F2 最小値",
+	"vp_limit_f2_max": "F2 最大値"
 }
