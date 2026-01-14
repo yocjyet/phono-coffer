@@ -120,7 +120,7 @@
 	}
 
 	let drawTrapezium = $state(true);
-	let hideBasicVowels = $state(false);
+	let drawBasicVowels = $state(true);
 
 	function handleExportProfile() {
 		const profile = $vowelProfiles.find((p) => p.id === selectedProfileId);
@@ -399,14 +399,14 @@
 				for="hide-basic-vowels"
 				class="mb-2 flex items-center gap-1 text-sm font-semibold text-gray-700"
 			>
-				<input type="checkbox" id="hide-basic-vowels" bind:checked={hideBasicVowels} />
-				{m.vp_hide_basic_vowels()}
+				<input type="checkbox" id="hide-basic-vowels" bind:checked={drawBasicVowels} />
+				{m.vp_draw_basic_vowels()}
 			</label>
 			<VowelChart
 				standardVowels={activeVowels}
 				userVowels={manualVowels}
 				showTrapezium={drawTrapezium}
-				{hideBasicVowels}
+				{drawBasicVowels}
 				onChartClick={handleChartClick}
 			/>
 		</div>

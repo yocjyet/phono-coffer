@@ -10,7 +10,7 @@
 		standardVowels = STANDARD_VOWELS,
 		showTrapezium = true,
 		showInnerLines = true,
-		hideBasicVowels = false,
+		drawBasicVowels = true,
 		onChartClick
 	}: {
 		width?: number;
@@ -20,7 +20,7 @@
 		standardVowels?: VowelDefinition[];
 		showTrapezium?: boolean;
 		showInnerLines?: boolean;
-		hideBasicVowels?: boolean;
+		drawBasicVowels?: boolean;
 		onChartClick?: (f1: number, f2: number) => void;
 	} = $props();
 
@@ -197,7 +197,7 @@
 		{/if}
 
 		// Standard Vowels
-		{#if !hideBasicVowels}
+		{#if drawBasicVowels}
 			{#each standardVowels as vowel}
 				{@const isHighlighted = vowel.ipa === highlightVowel}
 				<circle
