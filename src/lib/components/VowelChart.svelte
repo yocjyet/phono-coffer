@@ -221,6 +221,14 @@
 			<circle
 				cx={scaleX(vowel.f2)}
 				cy={scaleY(vowel.f1)}
+				r="12"
+				class="animate-pulse"
+				fill={vowel.color || '#16a34a'}
+				fill-opacity="0.3"
+			/>
+			<circle
+				cx={scaleX(vowel.f2)}
+				cy={scaleY(vowel.f1)}
 				r="6"
 				class="transition-colors"
 				fill={vowel.color || '#16a34a'}
