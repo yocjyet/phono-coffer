@@ -332,30 +332,12 @@
 			<div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
 				<h3 class="mb-4 text-lg font-semibold text-gray-900">{m.vp_manual_list_title()}</h3>
 				<div class="space-y-4">
-					<div class="flex gap-2">
-						<button
-							onclick={() => addManualVowel()}
-							class="w-full rounded-xl bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700"
-						>
-							<IconPlus class="mr-2 inline-block h-4 w-4" />
-							{m.vp_manual_add()}
-						</button>
-						{#if selectedVowelIds.length >= 2}
-							<button
-								onclick={groupVowels}
-								class="rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-2 font-semibold whitespace-nowrap text-gray-600 hover:bg-gray-50"
-							>
-								Group Selected
-							</button>
-						{/if}
-					</div>
-
 					<!-- Drop Zone for Ungrouping (Main List Area) -->
 					<!-- svelte-ignore a11y_no_static_element_interactions -->
 					<div
 						ondragover={(e) => e.preventDefault()}
 						ondrop={(e) => handleDrop(e, 'list')}
-						class="min-h-[100px] space-y-4 rounded-xl border-2 border-dashed border-transparent transition-colors {vowelSequences.length >
+						class="space-y-4 rounded-xl border-2 border-dashed border-transparent transition-colors {vowelSequences.length >
 						0
 							? 'hover:border-blue-200 hover:bg-blue-50/50'
 							: ''}"
@@ -530,6 +512,24 @@
 									</div>
 								{/each}
 							</div>
+						{/if}
+					</div>
+
+					<div class="flex gap-2">
+						<button
+							onclick={() => addManualVowel()}
+							class="w-full rounded-xl bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700"
+						>
+							<IconPlus class="mr-2 inline-block h-4 w-4" />
+							{m.vp_manual_add()}
+						</button>
+						{#if selectedVowelIds.length >= 2}
+							<button
+								onclick={groupVowels}
+								class="rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-2 font-semibold whitespace-nowrap text-gray-600 hover:bg-gray-50"
+							>
+								Group Selected
+							</button>
 						{/if}
 					</div>
 				</div>
