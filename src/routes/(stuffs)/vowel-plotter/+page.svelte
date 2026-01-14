@@ -255,7 +255,7 @@
 	}
 </script>
 
-<div class="mx-auto max-w-4xl space-y-8 px-6 py-12">
+<div class="mx-auto max-w-6xl space-y-8 px-6 py-12">
 	<div class="space-y-4">
 		<div class="flex flex-wrap items-center justify-between gap-4">
 			<div class="flex items-center gap-3">
@@ -383,7 +383,7 @@
 																selectedVowelIds = [...selectedVowelIds, vowel.id];
 															}
 														}}
-														class="flex items-center gap-2 rounded-lg border {isSelected
+														class="flex flex-wrap items-center gap-2 rounded-lg border {isSelected
 															? 'border-blue-500 bg-blue-50'
 															: 'border-transparent bg-white shadow-sm hover:border-gray-300'} cursor-move p-2 transition-all"
 													>
@@ -395,7 +395,7 @@
 															bind:value={vowel.label}
 															onclick={(e) => e.stopPropagation()}
 															placeholder={m.vp_manual_label()}
-															class="w-full min-w-0 flex-1 rounded-lg border-gray-300 text-sm focus:border-blue-500 focus:ring-blue-500"
+															class="w-full min-w-[100px] flex-1 rounded-lg border-gray-300 text-sm focus:border-blue-500 focus:ring-blue-500"
 														/>
 
 														<div
@@ -456,7 +456,7 @@
 										ondragstart={(e) => handleDragStart(e, vowel.id)}
 										ondragover={(e) => e.preventDefault()}
 										ondrop={(e) => handleDrop(e, 'vowel', vowel.id)}
-										class="flex items-center gap-2 rounded-lg border {isSelected
+										class="flex flex-wrap items-center gap-2 rounded-lg border {isSelected
 											? 'border-blue-500 bg-blue-50'
 											: 'border-gray-100 bg-gray-50'} cursor-pointer p-2 transition-colors"
 										onclick={() => {
@@ -474,7 +474,7 @@
 											bind:value={vowel.label}
 											onclick={(e) => e.stopPropagation()}
 											placeholder={m.vp_manual_label()}
-											class="w-full min-w-0 flex-1 rounded-lg border-gray-300 text-sm focus:border-blue-500 focus:ring-blue-500"
+											class="w-full min-w-[100px] flex-1 rounded-lg border-gray-300 text-sm focus:border-blue-500 focus:ring-blue-500"
 										/>
 										<div class="flex items-center gap-1">
 											<span class="text-xs text-gray-500">F1</span>
