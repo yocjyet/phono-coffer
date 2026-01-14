@@ -144,5 +144,8 @@
 	"spectrogram_loading": "生成中...",
 	"spectrogram_error": "生成频谱图失败",
 	"spectrogram_scale_label": "最大频率",
-	"spectrogram_hz_label": "Hz"
+	"spectrogram_hz_label": "Hz",
+	"vp_sequences_title": "複元音序列",
+	"vp_drag_ungroup": "（拖拽元音移出序列）",
+	"vp_dissolve_sequence": "删除序列"
 }

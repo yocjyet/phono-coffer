@@ -144,5 +144,8 @@
 	"spectrogram_loading": "生成中...",
 	"spectrogram_error": "スペクトログラムの生成に失敗しました",
 	"spectrogram_scale_label": "最大周波数",
-	"spectrogram_hz_label": "Hz"
+	"spectrogram_hz_label": "Hz",
+	"vp_sequences_title": "複母音列",
+	"vp_drag_ungroup": "（ドラッグしてグループ解除）",
+	"vp_dissolve_sequence": "配列を削除"
 }

@@ -144,5 +144,8 @@
 	"spectrogram_loading": "Generating...",
 	"spectrogram_error": "Failed to generate spectrogram",
 	"spectrogram_scale_label": "Max Frequency",
-	"spectrogram_hz_label": "Hz"
+	"spectrogram_hz_label": "Hz",
+	"vp_sequences_title": "Polyphthong Sequence",
+	"vp_drag_ungroup": "(Drag vowels out to ungroup)",
+	"vp_dissolve_sequence": "Dissolve Sequence"
 }

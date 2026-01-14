@@ -35,6 +35,9 @@
 		[]
 	);
 
+	let vowelSequences = $state<{ id: string; vowelIds: string[]; color?: string }[]>([]);
+	let selectedVowelIds = $state<string[]>([]);
+
 	function addManualVowel(f1 = 0, f2 = 0, label = '', color = '#16a34a') {
 		manualVowels.push({
 			id: crypto.randomUUID(),
@@ -51,6 +54,92 @@
 
 	function removeManualVowel(id: string) {
 		manualVowels = manualVowels.filter((v) => v.id !== id);
+		// Also remove any sequences containing this vowel
+		vowelSequences = vowelSequences.filter((seq) => !seq.vowelIds.includes(id));
+		selectedVowelIds = selectedVowelIds.filter((vId) => vId !== id);
+	}
+
+	function groupVowels() {
+		if (selectedVowelIds.length < 2) return;
+
+		vowelSequences.push({
+			id: crypto.randomUUID(),
+			vowelIds: [...selectedVowelIds],
+			color: '#4b5563'
+		});
+
+		selectedVowelIds = [];
+	}
+
+	function removeSequence(id: string) {
+		vowelSequences = vowelSequences.filter((s) => s.id !== id);
+	}
+
+	const allSequencedVowelIds = $derived(vowelSequences.flatMap((s) => s.vowelIds));
+
+	const unassignedVowels = $derived(
+		manualVowels.filter((v) => !allSequencedVowelIds.includes(v.id))
+	);
+
+	function handleDragStart(event: DragEvent, vowelId: string) {
+		if (event.dataTransfer) {
+			event.dataTransfer.setData('text/plain', vowelId);
+			event.dataTransfer.effectAllowed = 'move';
+		}
+	}
+
+	function handleDrop(
+		event: DragEvent,
+		targetType: 'list' | 'sequence' | 'vowel',
+		targetId?: string
+	) {
+		event.preventDefault();
+		event.stopPropagation(); // Prevent bubbling to parent drop zones
+
+		const sourceId = event.dataTransfer?.getData('text/plain');
+		if (!sourceId || sourceId === targetId) return;
+
+		// 1. Remove from previous location (sequence)
+		// We do this first to "pick it up". If it was unassigned, this step does nothing.
+		let wasInSequence = false;
+		vowelSequences = vowelSequences
+			.map((seq) => {
+				if (seq.vowelIds.includes(sourceId)) {
+					wasInSequence = true;
+					return {
+						...seq,
+						vowelIds: seq.vowelIds.filter((id) => id !== sourceId)
+					};
+				}
+				return seq;
+			})
+			.filter((seq) => seq.vowelIds.length > 0); // Cleanup empty sequences
+
+		// 2. Add to new location
+		if (targetType === 'list') {
+			// Dropped on main list (ungrouping) -> Already removed from sequence, so done.
+		} else if (targetType === 'sequence' && targetId) {
+			// Add to existing sequence
+			const seqIndex = vowelSequences.findIndex((s) => s.id === targetId);
+			if (seqIndex !== -1) {
+				vowelSequences[seqIndex].vowelIds.push(sourceId);
+			}
+		} else if (targetType === 'vowel' && targetId) {
+			// Create new sequence (Merge)
+			// Check if target is already in a sequence?
+			// The UI only exposes "unassigned" vowels as drop targets for merging in this specific list loop
+			// If target is unassigned, we create a new sequence.
+			vowelSequences.push({
+				id: crypto.randomUUID(),
+				vowelIds: [targetId, sourceId],
+				color: '#4b5563'
+			});
+		}
+
+		// 3. Cleanup: If dragging out left a sequence with < 2 vowels?
+		// User requirement "group any vowels". We'll stick to lenient "1+ is a sequence" for now
+		// to avoid surprising behavior where a box disappears when you drag one out.
+		// But usually we might want to cleanup... let's leave it flexible.
 	}
 
 	onMount(() => {
@@ -243,63 +332,206 @@
 			<div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
 				<h3 class="mb-4 text-lg font-semibold text-gray-900">{m.vp_manual_list_title()}</h3>
 				<div class="space-y-4">
-					<button
-						onclick={() => addManualVowel()}
-						class="w-full rounded-xl bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700"
-					>
-						<IconPlus class="mr-2 inline-block h-4 w-4" />
-						{m.vp_manual_add()}
-					</button>
+					<div class="flex gap-2">
+						<button
+							onclick={() => addManualVowel()}
+							class="w-full rounded-xl bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700"
+						>
+							<IconPlus class="mr-2 inline-block h-4 w-4" />
+							{m.vp_manual_add()}
+						</button>
+						{#if selectedVowelIds.length >= 2}
+							<button
+								onclick={groupVowels}
+								class="rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-2 font-semibold whitespace-nowrap text-gray-600 hover:bg-gray-50"
+							>
+								Group Selected
+							</button>
+						{/if}
+					</div>
 
-					{#if manualVowels.length > 0}
-						<div class="space-y-2">
-							{#each manualVowels as vowel}
-								<div
-									class="flex items-center gap-2 rounded-lg border border-gray-100 bg-gray-50 p-2"
-								>
-									<input
-										type="text"
-										bind:value={vowel.label}
-										placeholder={m.vp_manual_label()}
-										class="w-full min-w-0 flex-1 rounded-lg border-gray-300 text-sm focus:border-blue-500 focus:ring-blue-500"
-									/>
-									<div class="flex items-center gap-1">
-										<span class="text-xs text-gray-500">F1</span>
-										<input
-											type="number"
-											bind:value={vowel.f1}
-											class="w-20 rounded-lg border-gray-300 text-sm focus:border-blue-500 focus:ring-blue-500"
-										/>
-									</div>
-									<div class="flex items-center gap-1">
-										<span class="text-xs text-gray-500">F2</span>
-										<input
-											type="number"
-											bind:value={vowel.f2}
-											class="w-20 rounded-lg border-gray-300 text-sm focus:border-blue-500 focus:ring-blue-500"
-										/>
-									</div>
-									<button
-										class="overflow-hidden rounded-lg border border-gray-300 p-0"
-										title={m.vp_manual_color()}
+					<!-- Drop Zone for Ungrouping (Main List Area) -->
+					<!-- svelte-ignore a11y_no_static_element_interactions -->
+					<div
+						ondragover={(e) => e.preventDefault()}
+						ondrop={(e) => handleDrop(e, 'list')}
+						class="min-h-[100px] space-y-4 rounded-xl border-2 border-dashed border-transparent transition-colors {vowelSequences.length >
+						0
+							? 'hover:border-blue-200 hover:bg-blue-50/50'
+							: ''}"
+					>
+						{#if manualVowels.length > 0}
+							<div class="space-y-2">
+								<!-- Render Sequences First -->
+								{#each vowelSequences as seq}
+									<div
+										class="rounded-xl border border-gray-200 bg-gray-50 p-3"
+										ondragover={(e) => e.preventDefault()}
+										ondrop={(e) => handleDrop(e, 'sequence', seq.id)}
 									>
-										<input
-											type="color"
-											bind:value={vowel.color}
-											class="h-8 w-8 cursor-pointer border-none p-0"
-										/>
-									</button>
-									<button
-										onclick={() => removeManualVowel(vowel.id)}
-										class="rounded-lg p-2 text-red-600 hover:bg-red-100"
-										title={m.vp_manual_remove()}
+										<div class="mb-2 flex items-center justify-between">
+											<span
+												class="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase"
+											>
+												{m.vp_sequences_title()}
+												<span class="font-normal text-gray-400 normal-case">
+													{m.vp_drag_ungroup()}
+												</span>
+											</span>
+											<button
+												onclick={() => removeSequence(seq.id)}
+												class="rounded-lg p-1 text-red-600 hover:bg-red-100"
+												title={m.vp_dissolve_sequence()}
+											>
+												<IconDelete class="h-4 w-4" />
+											</button>
+										</div>
+										<div class="space-y-2">
+											{#each seq.vowelIds as vid}
+												{@const vowel = manualVowels.find((mv) => mv.id === vid)}
+												{#if vowel}
+													{@const isSelected = selectedVowelIds.includes(vowel.id)}
+													<div
+														draggable="true"
+														ondragstart={(e) => handleDragStart(e, vowel.id)}
+														onclick={() => {
+															if (isSelected) {
+																selectedVowelIds = selectedVowelIds.filter((id) => id !== vowel.id);
+															} else {
+																selectedVowelIds = [...selectedVowelIds, vowel.id];
+															}
+														}}
+														class="flex items-center gap-2 rounded-lg border {isSelected
+															? 'border-blue-500 bg-blue-50'
+															: 'border-transparent bg-white shadow-sm hover:border-gray-300'} cursor-move p-2 transition-all"
+													>
+														<!-- Drag Handle / Grip Indicator -->
+														<div class="cursor-grab text-gray-400">⋮⋮</div>
+
+														<input
+															type="text"
+															bind:value={vowel.label}
+															onclick={(e) => e.stopPropagation()}
+															placeholder={m.vp_manual_label()}
+															class="w-full min-w-0 flex-1 rounded-lg border-gray-300 text-sm focus:border-blue-500 focus:ring-blue-500"
+														/>
+
+														<div
+															class="flex items-center gap-1"
+															onclick={(e) => e.stopPropagation()}
+														>
+															<span class="text-xs text-gray-500">F1</span>
+															<input
+																type="number"
+																bind:value={vowel.f1}
+																class="w-20 rounded-lg border-gray-300 text-sm focus:border-blue-500 focus:ring-blue-500"
+															/>
+														</div>
+														<div
+															class="flex items-center gap-1"
+															onclick={(e) => e.stopPropagation()}
+														>
+															<span class="text-xs text-gray-500">F2</span>
+															<input
+																type="number"
+																bind:value={vowel.f2}
+																class="w-20 rounded-lg border-gray-300 text-sm focus:border-blue-500 focus:ring-blue-500"
+															/>
+														</div>
+														<button
+															class="overflow-hidden rounded-lg border border-gray-300 p-0"
+															title={m.vp_manual_color()}
+															onclick={(e) => e.stopPropagation()}
+														>
+															<input
+																type="color"
+																bind:value={vowel.color}
+																class="h-8 w-8 cursor-pointer border-none p-0"
+															/>
+														</button>
+														<button
+															onclick={(e) => {
+																e.stopPropagation();
+																removeManualVowel(vowel.id);
+															}}
+															class="rounded-lg p-2 text-red-600 hover:bg-red-100"
+															title={m.vp_manual_remove()}
+														>
+															<IconDelete class="h-4 w-4" />
+														</button>
+													</div>
+												{/if}
+											{/each}
+										</div>
+									</div>
+								{/each}
+
+								<!-- Render Unassigned Vowels -->
+								{#each unassignedVowels as vowel}
+									{@const isSelected = selectedVowelIds.includes(vowel.id)}
+									<div
+										draggable="true"
+										ondragstart={(e) => handleDragStart(e, vowel.id)}
+										ondragover={(e) => e.preventDefault()}
+										ondrop={(e) => handleDrop(e, 'vowel', vowel.id)}
+										class="flex items-center gap-2 rounded-lg border {isSelected
+											? 'border-blue-500 bg-blue-50'
+											: 'border-gray-100 bg-gray-50'} cursor-pointer p-2 transition-colors"
+										onclick={() => {
+											if (isSelected) {
+												selectedVowelIds = selectedVowelIds.filter((id) => id !== vowel.id);
+											} else {
+												selectedVowelIds = [...selectedVowelIds, vowel.id];
+											}
+										}}
 									>
-										<IconDelete class="h-4 w-4" />
-									</button>
-								</div>
-							{/each}
-						</div>
-					{/if}
+										<!-- Drag Handle / Grip Indicator for unassigned too -->
+										<div class="cursor-grab text-gray-400">⋮⋮</div>
+										<input
+											type="text"
+											bind:value={vowel.label}
+											onclick={(e) => e.stopPropagation()}
+											placeholder={m.vp_manual_label()}
+											class="w-full min-w-0 flex-1 rounded-lg border-gray-300 text-sm focus:border-blue-500 focus:ring-blue-500"
+										/>
+										<div class="flex items-center gap-1">
+											<span class="text-xs text-gray-500">F1</span>
+											<input
+												type="number"
+												bind:value={vowel.f1}
+												class="w-20 rounded-lg border-gray-300 text-sm focus:border-blue-500 focus:ring-blue-500"
+											/>
+										</div>
+										<div class="flex items-center gap-1">
+											<span class="text-xs text-gray-500">F2</span>
+											<input
+												type="number"
+												bind:value={vowel.f2}
+												class="w-20 rounded-lg border-gray-300 text-sm focus:border-blue-500 focus:ring-blue-500"
+											/>
+										</div>
+										<button
+											class="overflow-hidden rounded-lg border border-gray-300 p-0"
+											title={m.vp_manual_color()}
+										>
+											<input
+												type="color"
+												bind:value={vowel.color}
+												class="h-8 w-8 cursor-pointer border-none p-0"
+											/>
+										</button>
+										<button
+											onclick={() => removeManualVowel(vowel.id)}
+											class="rounded-lg p-2 text-red-600 hover:bg-red-100"
+											title={m.vp_manual_remove()}
+										>
+											<IconDelete class="h-4 w-4" />
+										</button>
+									</div>
+								{/each}
+							</div>
+						{/if}
+					</div>
 				</div>
 			</div>
 
@@ -405,6 +637,8 @@
 			<VowelChart
 				standardVowels={activeVowels}
 				userVowels={manualVowels}
+				userVowelSequences={vowelSequences}
+				bind:selectedVowelIds
 				showTrapezium={drawTrapezium}
 				{drawBasicVowels}
 				onChartClick={handleChartClick}

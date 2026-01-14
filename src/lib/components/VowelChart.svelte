@@ -7,6 +7,8 @@
 		height = 400,
 		highlightVowel = '',
 		userVowels = [],
+		userVowelSequences = [],
+		selectedVowelIds = $bindable([]),
 		standardVowels = STANDARD_VOWELS,
 		showTrapezium = true,
 		showInnerLines = true,
@@ -16,7 +18,9 @@
 		width?: number;
 		height?: number;
 		highlightVowel?: string;
-		userVowels?: { f1: number; f2: number; label?: string; color?: string }[];
+		userVowels?: { id?: string; f1: number; f2: number; label?: string; color?: string }[];
+		userVowelSequences?: { id: string; vowelIds: string[]; color?: string }[];
+		selectedVowelIds?: string[];
 		standardVowels?: VowelDefinition[];
 		showTrapezium?: boolean;
 		showInnerLines?: boolean;
@@ -73,6 +77,29 @@
 		)
 	);
 
+	// Sequence Lines (Segments)
+	const sequenceSegments = $derived(
+		userVowelSequences.flatMap((seq) => {
+			const validVowels = seq.vowelIds
+				.map((id) => userVowels.find((v) => v.id === id))
+				.filter((v) => v !== undefined);
+
+			const segments = [];
+			for (let i = 0; i < validVowels.length - 1; i++) {
+				const v1 = validVowels[i]!;
+				const v2 = validVowels[i + 1]!;
+				segments.push({
+					x1: scaleX(v1.f2),
+					y1: scaleY(v1.f1),
+					x2: scaleX(v2.f2),
+					y2: scaleY(v2.f1),
+					color: seq.color
+				});
+			}
+			return segments;
+		})
+	);
+
 	// Inverse Scales
 	function invertScaleX(x: number) {
 		const innerWidth = width - 2 * padding;
@@ -112,12 +139,40 @@
 
 		onChartClick(clampedF1, clampedF2);
 	}
+
+	function handleVowelClick(event: MouseEvent, id?: string) {
+		if (!id) return;
+		event.stopPropagation();
+
+		const index = selectedVowelIds.indexOf(id);
+		if (index === -1) {
+			selectedVowelIds.push(id);
+		} else {
+			selectedVowelIds.splice(index, 1);
+		}
+		// Trigger reactivity
+		selectedVowelIds = [...selectedVowelIds];
+	}
 </script>
 
 <div class="relative w-full overflow-hidden rounded-xl bg-gray-50">
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<svg viewBox={`0 0 ${width} ${height}`} class="w-full cursor-crosshair" onclick={handleClick}>
+		<defs>
+			<marker
+				id="arrowhead"
+				viewBox="0 0 10 10"
+				refX="15"
+				refY="5"
+				markerWidth="6"
+				markerHeight="6"
+				orient="auto-start-reverse"
+			>
+				<path d="M 0 0 L 10 5 L 0 10 z" fill="#4b5563" />
+			</marker>
+		</defs>
+
 		<!-- Grid lines -->
 		{#each [200, 300, 400, 500, 600, 700, 800, 900] as f1}
 			<line
@@ -216,30 +271,56 @@
 			{/each}
 		{/if}
 
+		<!-- User Vowel Sequences (Arrows) -->
+		{#each sequenceSegments as seg}
+			<line
+				x1={seg.x1}
+				y1={seg.y1}
+				x2={seg.x2}
+				y2={seg.y2}
+				stroke={seg.color || '#4b5563'}
+				stroke-width="2"
+				marker-end="url(#arrowhead)"
+			/>
+		{/each}
+
 		<!-- User Vowels List (Manual Input) -->
 		{#each userVowels as vowel}
-			<circle
-				cx={scaleX(vowel.f2)}
-				cy={scaleY(vowel.f1)}
-				r="12"
-				class="animate-pulse"
-				fill={vowel.color || '#16a34a'}
-				fill-opacity="0.3"
-			/>
-			<circle
-				cx={scaleX(vowel.f2)}
-				cy={scaleY(vowel.f1)}
-				r="6"
-				class="transition-colors"
-				fill={vowel.color || '#16a34a'}
-			/>
-			<text
-				x={scaleX(vowel.f2)}
-				y={scaleY(vowel.f1) - 12}
-				text-anchor="middle"
-				class="text-sm font-bold transition-colors"
-				fill={vowel.color || '#16a34a'}>{vowel.label || ''}</text
-			>
+			{@const isSelected = vowel.id && selectedVowelIds.includes(vowel.id)}
+			<!-- svelte-ignore a11y_click_events_have_key_events -->
+			<!-- svelte-ignore a11y_no_static_element_interactions -->
+			<g onclick={(e) => handleVowelClick(e, vowel.id)} class="cursor-pointer">
+				<circle
+					cx={scaleX(vowel.f2)}
+					cy={scaleY(vowel.f1)}
+					r="12"
+					class="animate-pulse"
+					fill={vowel.color || '#16a34a'}
+					fill-opacity="0.3"
+				/>
+				{#if isSelected}
+					<circle
+						cx={scaleX(vowel.f2)}
+						cy={scaleY(vowel.f1)}
+						r="10"
+						class="fill-none stroke-blue-500 stroke-2 opacity-50"
+					/>
+				{/if}
+				<circle
+					cx={scaleX(vowel.f2)}
+					cy={scaleY(vowel.f1)}
+					r="6"
+					class="transition-colors hover:stroke-black hover:stroke-2"
+					fill={vowel.color || '#16a34a'}
+				/>
+				<text
+					x={scaleX(vowel.f2)}
+					y={scaleY(vowel.f1) - 12}
+					text-anchor="middle"
+					class="text-sm font-bold transition-colors select-none"
+					fill={vowel.color || '#16a34a'}>{vowel.label || ''}</text
+				>
+			</g>
 		{/each}
 	</svg>
 </div>
