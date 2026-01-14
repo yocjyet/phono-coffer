@@ -29,7 +29,6 @@
 	"wizard_step_name": "設定檔名稱",
 	"wizard_name_label": "設定檔名稱",
 	"wizard_name_placeholder": "例如：我的聲音、母語者 X",
-	"wizard_next": "下一步",
 	"wizard_recording_vowel": "正在錄製母音",
 	"wizard_record_btn": "錄音",
 	"wizard_stop_btn": "停止",

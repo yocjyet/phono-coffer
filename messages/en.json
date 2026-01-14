@@ -29,7 +29,6 @@
 	"wizard_step_name": "Profile Name",
 	"wizard_name_label": "Profile Name",
 	"wizard_name_placeholder": "e.g., My Voice, Native Speaker X",
-	"wizard_next": "Next",
 	"wizard_recording_vowel": "Recording Vowel",
 	"wizard_record_btn": "Record",
 	"wizard_stop_btn": "Stop",

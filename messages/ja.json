@@ -29,7 +29,6 @@
 	"wizard_step_name": "プロファイル名",
 	"wizard_name_label": "プロファイル名",
 	"wizard_name_placeholder": "例: 私の声, ネイティブスピーカーX",
-	"wizard_next": "次へ",
 	"wizard_recording_vowel": "母音を録音中",
 	"wizard_record_btn": "録音",
 	"wizard_stop_btn": "停止",

@@ -29,7 +29,6 @@
 	"wizard_step_name": "配置文件名称",
 	"wizard_name_label": "配置文件名称",
 	"wizard_name_placeholder": "例如：我的声音、母语者 X",
-	"wizard_next": "下一步",
 	"wizard_recording_vowel": "正在录制母音",
 	"wizard_record_btn": "录音",
 	"wizard_stop_btn": "停止",
