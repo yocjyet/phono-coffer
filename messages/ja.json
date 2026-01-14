@@ -24,6 +24,7 @@
 	"vp_axis_f2": "F2 (Hz)",
 	"vp_you_marker": "あなた",
 	"vp_draw_trapezium": "四角形を描く",
+	"vp_hide_basic_vowels": "基本母音を隠す",
 	"wizard_title": "カスタム母音プロファイルを作成",
 	"wizard_step_name": "プロファイル名",
 	"wizard_name_label": "プロファイル名",

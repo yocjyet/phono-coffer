@@ -10,7 +10,8 @@
 		userVowels = [],
 		standardVowels = STANDARD_VOWELS,
 		showTrapezium = true,
-		showInnerLines = true
+		showInnerLines = true,
+		hideBasicVowels = false
 	}: {
 		width?: number;
 		height?: number;
@@ -20,6 +21,7 @@
 		standardVowels?: VowelDefinition[];
 		showTrapezium?: boolean;
 		showInnerLines?: boolean;
+		hideBasicVowels?: boolean;
 	} = $props();
 
 	const padding = 40;
@@ -152,23 +154,25 @@
 			{/if}
 		{/if}
 
-		<!-- Standard Vowels -->
-		{#each standardVowels as vowel}
-			{@const isHighlighted = vowel.ipa === highlightVowel}
-			<circle
-				cx={scaleX(vowel.f2)}
-				cy={scaleY(vowel.f1)}
-				r={isHighlighted ? 8 : 4}
-				class={isHighlighted ? 'animate-pulse fill-red-500' : 'fill-gray-300'}
-			/>
-			<text
-				x={scaleX(vowel.f2)}
-				y={scaleY(vowel.f1) - (isHighlighted ? 12 : 8)}
-				text-anchor="middle"
-				class="{isHighlighted ? 'fill-red-600 text-lg' : 'fill-gray-600 text-sm'} font-bold"
-				>{vowel.ipa}</text
-			>
-		{/each}
+		// Standard Vowels
+		{#if !hideBasicVowels}
+			{#each standardVowels as vowel}
+				{@const isHighlighted = vowel.ipa === highlightVowel}
+				<circle
+					cx={scaleX(vowel.f2)}
+					cy={scaleY(vowel.f1)}
+					r={isHighlighted ? 8 : 4}
+					class={isHighlighted ? 'animate-pulse fill-red-500' : 'fill-gray-300'}
+				/>
+				<text
+					x={scaleX(vowel.f2)}
+					y={scaleY(vowel.f1) - (isHighlighted ? 12 : 8)}
+					text-anchor="middle"
+					class="{isHighlighted ? 'fill-red-600 text-lg' : 'fill-gray-600 text-sm'} font-bold"
+					>{vowel.ipa}</text
+				>
+			{/each}
+		{/if}
 
 		<!-- User Result -->
 		{#if userVowel}

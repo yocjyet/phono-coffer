@@ -24,6 +24,7 @@
 	"vp_axis_f2": "F2 (Hz)",
 	"vp_you_marker": "你",
 	"vp_draw_trapezium": "绘制倒梯形",
+	"vp_hide_basic_vowels": "隐藏基本母音",
 	"wizard_title": "创建自定义母音配置文件",
 	"wizard_step_name": "配置文件名称",
 	"wizard_name_label": "配置文件名称",
