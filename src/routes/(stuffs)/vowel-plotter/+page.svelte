@@ -30,6 +30,29 @@
 	let showProfileModal = $state(false);
 	let dontShowAgain = $state(false);
 
+	// Manual Input State
+	let manualVowels = $state<{ id: string; label: string; f1: number; f2: number; color: string }[]>(
+		[]
+	);
+
+	function addManualVowel(f1 = 0, f2 = 0, label = '', color = '#16a34a') {
+		manualVowels.push({
+			id: crypto.randomUUID(),
+			label,
+			f1,
+			f2,
+			color
+		});
+	}
+
+	function handleChartClick(f1: number, f2: number) {
+		addManualVowel(f1, f2);
+	}
+
+	function removeManualVowel(id: string) {
+		manualVowels = manualVowels.filter((v) => v.id !== id);
+	}
+
 	onMount(() => {
 		const remembered = localStorage.getItem('vp_profile_choice_remembered');
 		if (!remembered && inputMode === 'mic') {
@@ -84,6 +107,12 @@
 				return;
 			}
 			result = parsed;
+			addManualVowel(
+				parsed.averages.f1,
+				parsed.averages.f2,
+				parsed.closestVowel?.ipa || '',
+				'#2563eb'
+			);
 		} catch (e) {
 			error = m.vp_error_generic();
 			console.error(e);
@@ -133,6 +162,7 @@
 			averages: { f1, f2, f3: 0 }, // F3 is not estimated by our simple LPC
 			closestVowel: closest
 		};
+		addManualVowel(f1, f2, closest?.ipa || '', '#2563eb');
 	}
 </script>
 
@@ -208,52 +238,119 @@
 	</div>
 
 	<div class="grid gap-8 lg:grid-cols-2">
-		<div class="space-y-4">
-			<div class="flex gap-2 border-b border-gray-200">
-				<button
-					onclick={() => (inputMode = 'mic')}
-					class="px-4 py-2 text-sm font-semibold transition-colors {inputMode === 'mic'
-						? 'border-b-2 border-blue-600 text-blue-600'
-						: 'text-gray-500 hover:text-gray-700'}"
-				>
-					{m.vp_tab_mic()}
-				</button>
-				<button
-					onclick={() => (inputMode = 'praat')}
-					class="px-4 py-2 text-sm font-semibold transition-colors {inputMode === 'praat'
-						? 'border-b-2 border-blue-600 text-blue-600'
-						: 'text-gray-500 hover:text-gray-700'}"
-				>
-					{m.vp_tab_praat()}
-				</button>
+		<div class="space-y-6">
+			<!-- Manual Input List (Always Visible) -->
+			<div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+				<h3 class="mb-4 text-lg font-semibold text-gray-900">{m.vp_manual_list_title()}</h3>
+				<div class="space-y-4">
+					<button
+						onclick={() => addManualVowel()}
+						class="w-full rounded-xl bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700"
+					>
+						<IconPlus class="mr-2 inline-block h-4 w-4" />
+						{m.vp_manual_add()}
+					</button>
+
+					{#if manualVowels.length > 0}
+						<div class="space-y-2">
+							{#each manualVowels as vowel}
+								<div
+									class="flex items-center gap-2 rounded-lg border border-gray-100 bg-gray-50 p-2"
+								>
+									<input
+										type="text"
+										bind:value={vowel.label}
+										placeholder={m.vp_manual_label()}
+										class="w-full min-w-0 flex-1 rounded-lg border-gray-300 text-sm focus:border-blue-500 focus:ring-blue-500"
+									/>
+									<div class="flex items-center gap-1">
+										<span class="text-xs text-gray-500">F1</span>
+										<input
+											type="number"
+											bind:value={vowel.f1}
+											class="w-20 rounded-lg border-gray-300 text-sm focus:border-blue-500 focus:ring-blue-500"
+										/>
+									</div>
+									<div class="flex items-center gap-1">
+										<span class="text-xs text-gray-500">F2</span>
+										<input
+											type="number"
+											bind:value={vowel.f2}
+											class="w-20 rounded-lg border-gray-300 text-sm focus:border-blue-500 focus:ring-blue-500"
+										/>
+									</div>
+									<button
+										class="overflow-hidden rounded-lg border border-gray-300 p-0"
+										title={m.vp_manual_color()}
+									>
+										<input
+											type="color"
+											bind:value={vowel.color}
+											class="h-8 w-8 cursor-pointer border-none p-0"
+										/>
+									</button>
+									<button
+										onclick={() => removeManualVowel(vowel.id)}
+										class="rounded-lg p-2 text-red-600 hover:bg-red-100"
+										title={m.vp_manual_remove()}
+									>
+										<IconDelete class="h-4 w-4" />
+									</button>
+								</div>
+							{/each}
+						</div>
+					{/if}
+				</div>
 			</div>
 
-			<div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-				{#if inputMode === 'praat'}
-					<label for="praat-data" class="mb-2 block text-sm font-semibold text-gray-700">
-						{m.vp_input_label()}
-					</label>
-					<textarea
-						id="praat-data"
-						bind:value={inputData}
-						placeholder="Time_s   F1_Hz   F2_Hz   F3_Hz   F4_Hz&#10;0.580465   564.537559   1596.781229   2332.062939   3454.391843..."
-						class="h-64 w-full rounded-xl border-gray-300 font-mono text-sm focus:border-blue-500 focus:ring-blue-500"
-					></textarea>
-					<div class="mt-4 flex justify-end">
-						<button
-							onclick={handleAnalyze}
-							class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none"
-						>
-							<IconContentPaste class="h-4 w-4" />
-							{m.vp_analyze_button()}
-						</button>
-					</div>
-				{:else}
-					<VowelRecorder onAccept={handleVoiceResult} autoConfirm={true} />
-				{/if}
-				{#if error}
-					<p class="mt-2 text-sm text-red-600">{error}</p>
-				{/if}
+			<!-- Input Tabs -->
+			<div>
+				<div class="flex gap-2 border-b border-gray-200">
+					<button
+						onclick={() => (inputMode = 'mic')}
+						class="px-4 py-2 text-sm font-semibold transition-colors {inputMode === 'mic'
+							? 'border-b-2 border-blue-600 text-blue-600'
+							: 'text-gray-500 hover:text-gray-700'}"
+					>
+						{m.vp_tab_mic()}
+					</button>
+					<button
+						onclick={() => (inputMode = 'praat')}
+						class="px-4 py-2 text-sm font-semibold transition-colors {inputMode === 'praat'
+							? 'border-b-2 border-blue-600 text-blue-600'
+							: 'text-gray-500 hover:text-gray-700'}"
+					>
+						{m.vp_tab_praat()}
+					</button>
+				</div>
+
+				<div class="rounded-b-2xl border-x border-b border-gray-200 bg-white p-6 shadow-sm">
+					{#if inputMode === 'praat'}
+						<label for="praat-data" class="mb-2 block text-sm font-semibold text-gray-700">
+							{m.vp_input_label()}
+						</label>
+						<textarea
+							id="praat-data"
+							bind:value={inputData}
+							placeholder="Time_s   F1_Hz   F2_Hz   F3_Hz   F4_Hz&#10;0.580465   564.537559   1596.781229   2332.062939   3454.391843..."
+							class="h-64 w-full rounded-xl border-gray-300 font-mono text-sm focus:border-blue-500 focus:ring-blue-500"
+						></textarea>
+						<div class="mt-4 flex justify-end">
+							<button
+								onclick={handleAnalyze}
+								class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none"
+							>
+								<IconContentPaste class="h-4 w-4" />
+								{m.vp_analyze_button()}
+							</button>
+						</div>
+					{:else}
+						<VowelRecorder onAccept={handleVoiceResult} autoConfirm={true} />
+					{/if}
+					{#if error}
+						<p class="mt-2 text-sm text-red-600">{error}</p>
+					{/if}
+				</div>
 			</div>
 
 			{#if result}
@@ -307,9 +404,10 @@
 			</label>
 			<VowelChart
 				standardVowels={activeVowels}
-				userVowel={result ? result.averages : null}
+				userVowels={manualVowels}
 				showTrapezium={drawTrapezium}
 				{hideBasicVowels}
+				onChartClick={handleChartClick}
 			/>
 		</div>
 	</div>

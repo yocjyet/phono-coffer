@@ -6,22 +6,22 @@
 		width = 600,
 		height = 400,
 		highlightVowel = '',
-		userVowel = null,
 		userVowels = [],
 		standardVowels = STANDARD_VOWELS,
 		showTrapezium = true,
 		showInnerLines = true,
-		hideBasicVowels = false
+		hideBasicVowels = false,
+		onChartClick
 	}: {
 		width?: number;
 		height?: number;
 		highlightVowel?: string;
-		userVowel?: { f1: number; f2: number } | null;
-		userVowels?: { f1: number; f2: number; label?: string }[];
+		userVowels?: { f1: number; f2: number; label?: string; color?: string }[];
 		standardVowels?: VowelDefinition[];
 		showTrapezium?: boolean;
 		showInnerLines?: boolean;
 		hideBasicVowels?: boolean;
+		onChartClick?: (f1: number, f2: number) => void;
 	} = $props();
 
 	const padding = 40;
@@ -72,10 +72,52 @@
 				.join(' ')
 		)
 	);
+
+	// Inverse Scales
+	function invertScaleX(x: number) {
+		const innerWidth = width - 2 * padding;
+		// x = width - padding - ratio * innerWidth
+		// ratio * innerWidth = width - padding - x
+		// ratio = (width - padding - x) / innerWidth
+		const ratio = (width - padding - x) / innerWidth;
+		return f2Min + ratio * (f2Max - f2Min);
+	}
+
+	function invertScaleY(y: number) {
+		const innerHeight = height - 2 * padding;
+		// y = padding + ratio * innerHeight
+		const ratio = (y - padding) / innerHeight;
+		return f1Min + ratio * (f1Max - f1Min);
+	}
+
+	function handleClick(event: MouseEvent) {
+		if (!onChartClick) return;
+		const svg = event.currentTarget as SVGSVGElement;
+		const rect = svg.getBoundingClientRect();
+
+		// Calculate x, y relative to the SVG viewBox
+		// Taking into account that the SVG might be scaled via CSS
+		const scaleX = width / rect.width;
+		const scaleY = height / rect.height;
+
+		const clickX = (event.clientX - rect.left) * scaleX;
+		const clickY = (event.clientY - rect.top) * scaleY;
+
+		const f1 = Math.round(invertScaleY(clickY));
+		const f2 = Math.round(invertScaleX(clickX));
+
+		// Clamp values to domain
+		const clampedF1 = Math.max(f1Min, Math.min(f1Max, f1));
+		const clampedF2 = Math.max(f2Min, Math.min(f2Max, f2));
+
+		onChartClick(clampedF1, clampedF2);
+	}
 </script>
 
 <div class="relative w-full overflow-hidden rounded-xl bg-gray-50">
-	<svg viewBox={`0 0 ${width} ${height}`} class="w-full">
+	<!-- svelte-ignore a11y_click_events_have_key_events -->
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<svg viewBox={`0 0 ${width} ${height}`} class="w-full cursor-crosshair" onclick={handleClick}>
 		<!-- Grid lines -->
 		{#each [200, 300, 400, 500, 600, 700, 800, 900] as f1}
 			<line
@@ -174,21 +216,22 @@
 			{/each}
 		{/if}
 
-		<!-- User Result -->
-		{#if userVowel}
-			<circle cx={scaleX(userVowel.f2)} cy={scaleY(userVowel.f1)} r="6" class="fill-blue-600" />
+		<!-- User Vowels List (Manual Input) -->
+		{#each userVowels as vowel}
 			<circle
-				cx={scaleX(userVowel.f2)}
-				cy={scaleY(userVowel.f1)}
-				r="10"
-				class="animate-pulse fill-blue-600/30"
+				cx={scaleX(vowel.f2)}
+				cy={scaleY(vowel.f1)}
+				r="6"
+				class="transition-colors"
+				fill={vowel.color || '#16a34a'}
 			/>
 			<text
-				x={scaleX(userVowel.f2)}
-				y={scaleY(userVowel.f1) - 12}
+				x={scaleX(vowel.f2)}
+				y={scaleY(vowel.f1) - 12}
 				text-anchor="middle"
-				class="fill-blue-600 text-sm font-bold">{m.vp_you_marker()}</text
+				class="text-sm font-bold transition-colors"
+				fill={vowel.color || '#16a34a'}>{vowel.label || ''}</text
 			>
-		{/if}
+		{/each}
 	</svg>
 </div>
