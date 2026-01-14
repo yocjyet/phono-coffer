@@ -38,7 +38,7 @@
 	let vowelSequences = $state<{ id: string; vowelIds: string[]; color?: string }[]>([]);
 	let selectedVowelIds = $state<string[]>([]);
 
-	function addManualVowel(f1 = 0, f2 = 0, label = '', color = '#16a34a') {
+	function addManualVowel(f1 = 500, f2 = 1500, label = '', color = '#16a34a') {
 		manualVowels.push({
 			id: crypto.randomUUID(),
 			label,
